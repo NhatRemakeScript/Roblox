@@ -7,8 +7,13 @@ local VU=game:GetService("VirtualUser")
 local SG=Instance.new("ScreenGui")
 SG.Name="Menu"
 SG.Parent=Player:WaitForChild("PlayerGui")
+
+local rainbow=false
+local rainbowHue=0
+
 local function C(o,r)local c=Instance.new("UICorner")c.CornerRadius=UDim.new(0,r)c.Parent=o end
 local function S(o,c,t)local s=Instance.new("UIStroke")s.Color=c s.Thickness=t s.Parent=o end
+
 local MF=Instance.new("Frame")
 MF.Size=UDim2.new(0,380,0,320)
 MF.Position=UDim2.new(0.5,-190,0.5,-160)
@@ -16,7 +21,18 @@ MF.BackgroundColor3=Color3.fromRGB(20,20,25)
 MF.Visible=false
 MF.Parent=SG
 C(MF,12)
-S(MF,Color3.fromRGB(0,200,255),1.5)
+local mainStroke=S(MF,Color3.fromRGB(255,0,0),1.5)
+
+local function rainbowLoop()
+    while true do
+        rainbowHue=(rainbowHue+0.01)%1
+        local col=Color3.fromHSV(rainbowHue,1,1)
+        mainStroke.Color=col
+        wait(0.05)
+    end
+end
+spawn(rainbowLoop)
+
 local TB=Instance.new("Frame")
 TB.Size=UDim2.new(1,0,0,35)
 TB.BackgroundColor3=Color3.fromRGB(30,30,38)
@@ -62,12 +78,13 @@ local TMisc=Instance.new("TextButton")
 TMisc.Size=UDim2.new(0,100,0,25)
 TMisc.Position=UDim2.new(0.5,10,0.5,-12.5)
 TMisc.BackgroundColor3=Color3.fromRGB(40,40,48)
-TMisc.Text="Misc"
+TMisc.Text="Stats"
 TMisc.TextColor3=Color3.fromRGB(200,200,200)
 TMisc.TextSize=13
 TMisc.Font=Enum.Font.GothamMedium
 TMisc.Parent=TC
 C(TMisc,6)
+
 local CP=Instance.new("ScrollingFrame")
 CP.Size=UDim2.new(1,-10,1,-75)
 CP.Position=UDim2.new(0,5,0,70)
@@ -82,6 +99,7 @@ CL.FillDirection=Enum.FillDirection.Vertical
 CL.Padding=UDim.new(0,8)
 CL.SortOrder=Enum.SortOrder.LayoutOrder
 CL.Parent=CP
+
 local function CreateToggle(parent,text,def,cb)
 local fr=Instance.new("Frame")
 fr.Size=UDim2.new(1,0,0,35)
@@ -103,22 +121,24 @@ lb.Parent=fr
 local sw=Instance.new("Frame")
 sw.Size=UDim2.new(0,40,0,22)
 sw.Position=UDim2.new(1,-52,0.5,-11)
-sw.BackgroundColor3=def and Color3.fromRGB(0,200,255)or Color3.fromRGB(60,60,70)
+sw.BackgroundColor3=def and Color3.fromRGB(255,215,0)or Color3.fromRGB(60,60,70)
 sw.Parent=fr
 C(sw,22)
 local knob=Instance.new("Frame")
-knob.Size=UDim2.new(0,16,0,16)
-knob.Position=def and UDim2.new(0,21,0.5,-8)or UDim2.new(0,3,0.5,-8)
+knob.Size=UDim2.new(0,18,0,18)
+knob.Position=def and UDim2.new(0,19,0.5,-9)or UDim2.new(0,2,0.5,-9)
+knob.AnchorPoint=Vector2.new(0.5,0.5)
 knob.BackgroundColor3=Color3.fromRGB(255,255,255)
 knob.Parent=sw
-C(knob,16)
+C(knob,4)
 local state=def or false
 local function setState(ns)
 state=ns
-local tp=state and UDim2.new(0,21,0.5,-8)or UDim2.new(0,3,0.5,-8)
-local tc=state and Color3.fromRGB(0,200,255)or Color3.fromRGB(60,60,70)
-TS:Create(sw,TweenInfo.new(0.2),{BackgroundColor3=tc}):Play()
-TS:Create(knob,TweenInfo.new(0.2),{Position=tp}):Play()
+local targetPos=state and UDim2.new(0,19,0.5,-9)or UDim2.new(0,2,0.5,-9)
+local targetCol=state and Color3.fromRGB(255,215,0)or Color3.fromRGB(60,60,70)
+local targetRot=state and 45 or 0
+TS:Create(sw,TweenInfo.new(0.3,Enum.EasingStyle.Quad),{BackgroundColor3=targetCol}):Play()
+TS:Create(knob,TweenInfo.new(0.3,Enum.EasingStyle.Quad),{Position=targetPos,Rotation=targetRot}):Play()
 if cb then cb(state)end
 end
 local click=Instance.new("TextButton")
@@ -129,6 +149,7 @@ click.Parent=fr
 click.MouseButton1Click:Connect(function()setState(not state)end)
 return fr,setState
 end
+
 local mainTab=Instance.new("Frame")
 mainTab.Name="MainTab"
 mainTab.Size=UDim2.new(1,0,0,0)
@@ -153,7 +174,6 @@ miscLayout.Padding=UDim.new(0,8)
 miscLayout.SortOrder=Enum.SortOrder.LayoutOrder
 miscLayout.Parent=miscTab
 
--- ANTI AFK
 spawn(function()
     while wait(60) do
         pcall(function()
@@ -163,131 +183,207 @@ spawn(function()
     end
 end)
 
--- Toggle cũ
+local function randDelay(min, max)
+    return math.random(min*100, max*100) / 100
+end
+
 local reb=false
-CreateToggle(mainTab,"🔄 Auto Rebirth",false,function(s)
+CreateToggle(mainTab,"👼 Auto Rebirth",false,function(s)
 reb=s
-spawn(function()while reb do pcall(function()RS.Remotes.Rebirth:InvokeServer()end)wait(1)end end)
+spawn(function()
+    while reb do
+        pcall(function() RS.Remotes.Rebirth:InvokeServer() end)
+        wait(randDelay(1.8, 2.5))
+    end
 end)
-local bf=false
-CreateToggle(mainTab,"🌾 Auto Buy Feeder",false,function(s)
-bf=s
-spawn(function()local a=1 while bf do pcall(function()RS.Remotes.BuyGenerator:InvokeServer(a)end)a=(a==1)and 2 or 1 wait(3)end end)
 end)
-local ug=false
-CreateToggle(mainTab,"⚒️ Auto Upgraded",false,function(s)
-ug=s
-spawn(function()local a=1 while ug do pcall(function()RS.Remotes.UpgradeGenerator:InvokeServer(a)end)a=(a==1)and 2 or 1 wait(2)end end)
+
+local feeder=false
+CreateToggle(mainTab,"🌾 Auto Feeder",false,function(s)
+feeder=s
+spawn(function()
+    local a=1
+    while feeder do
+        pcall(function()
+            RS.Remotes.BuyGenerator:InvokeServer(a)
+            RS.Remotes.UpgradeGenerator:InvokeServer(a)
+        end)
+        a=(a==1)and 2 or 1
+        wait(randDelay(1.8, 2.5))
+    end
 end)
+end)
+
 local ne=false
-CreateToggle(mainTab,"🥚 Auto NestEgg",false,function(s)
+local currentTarget=nil
+local isWalking=false
+local function moveToPosition(targetPos)
+    local char=Player.Character
+    if not char then return false end
+    local root=char:FindFirstChild("HumanoidRootPart")
+    local humanoid=char:FindFirstChild("Humanoid")
+    if not root or not humanoid then return false end
+    local distance=(root.Position - targetPos).Magnitude
+    if distance < 5 then
+        humanoid:MoveTo(root.Position)
+        return true
+    end
+    humanoid:MoveTo(targetPos)
+    isWalking=true
+    local startTime=tick()
+    while isWalking and tick()-startTime<15 do
+        local newDist=(root.Position - targetPos).Magnitude
+        if newDist < 5 then
+            isWalking=false
+            return true
+        end
+        if humanoid.MoveDirection.Magnitude<0.5 and newDist>10 then
+            break
+        end
+        wait(0.5)
+    end
+    isWalking=false
+    return false
+end
+CreateToggle(mainTab,"🥚 Collect Egg",false,function(s)
 ne=s
-spawn(function()while ne do pcall(function()
-local ch=Player.Character if not ch then wait(1)return end
-local rp=ch:FindFirstChild("HumanoidRootPart")if not rp then wait(1)return end
-local egg=nil
-for _,v in pairs(workspace:GetDescendants())do
-if v:IsA("Model")and v.Name:find("NestEgg")then
-local ow=v:FindFirstChild("Owner")or v:FindFirstChild("OwnerName")
-if ow and ow.Value==Player.Name then egg=v break end
-end
-end
-if egg then
-local pos=egg:FindFirstChild("HumanoidRootPart")or egg:FindFirstChild("PrimaryPart")or egg:FindFirstChildWhichIsA("BasePart")
-if pos then rp.CFrame=CFrame.new(pos.Position+Vector3.new(0,2,0))end
-end
-end)wait(2)end end)
-end)
-
--- Biến toàn cục để tạm dừng tower start
-local pauseTowerStart = false
-
--- Auto Tower Start (gửi mỗi 30 giây, nhưng tạm dừng nếu pauseTowerStart = true)
-local autoTowerStart=false
-CreateToggle(mainTab,"🗼 Auto Tower Start (30s)",false,function(s)
-autoTowerStart=s
 if s then
 spawn(function()
-while autoTowerStart do
-if not pauseTowerStart then
-pcall(function()RS.Remotes.TowerStart:InvokeServer()end)
-else
--- Nếu đang tạm dừng, thì không gửi, nhưng vẫn chờ 30s
-end
-wait(30)
-end
+    while ne do
+        pcall(function()
+            local char=Player.Character
+            if not char then wait(1) return end
+            local root=char:FindFirstChild("HumanoidRootPart")
+            local humanoid=char:FindFirstChild("Humanoid")
+            if not root or not humanoid then wait(1) return end
+            local egg=nil
+            for _,v in pairs(workspace:GetDescendants()) do
+                if v:IsA("Model") and v.Name:find("NestEgg") then
+                    local ow=v:FindFirstChild("owner") or v:FindFirstChild("Owner") or v:FindFirstChild("OwnerName")
+                    if ow and ow.Value==Player.Name then
+                        egg=v
+                        break
+                    end
+                end
+            end
+            if egg then
+                local pos=egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChild("PrimaryPart") or egg:FindFirstChildWhichIsA("BasePart")
+                if pos then
+                    local targetPos=pos.Position+Vector3.new(0,2,0)
+                    local distance=(root.Position-targetPos).Magnitude
+                    if distance>5 then
+                        moveToPosition(targetPos)
+                    end
+                end
+            end
+        end)
+        wait(randDelay(2.5, 3.5))
+    end
 end)
 end
 end)
 
--- Auto Tower Ready (chỉ gửi khi thấy "REBIRTH READY!")
+local autoTower=false
+local pauseTowerStart=false
+CreateToggle(mainTab,"🗼 Auto Tower",false,function(s)
+autoTower=s
+if s then
+spawn(function()
+    while autoTower do
+        if not pauseTowerStart then
+            pcall(function() RS.Remotes.TowerStart:InvokeServer() end)
+        end
+        wait(randDelay(27.5, 29.7))
+    end
+end)
+end
+end)
+
 local function findRebirthReady()
-for _, gui in ipairs(Player:WaitForChild("PlayerGui"):GetDescendants())do
-if gui:IsA("TextLabel")or gui:IsA("TextButton")then
-if gui.Text and gui.Text:upper():find("REBIRTH READY!")then
-return true
+    for _, gui in ipairs(Player:WaitForChild("PlayerGui"):GetDescendants())do
+        if gui:IsA("TextLabel")or gui:IsA("TextButton")then
+            if gui.Text and gui.Text:upper():find("REBIRTH READY!")then
+                return true
+            end
+        end
+    end
+    for _, obj in ipairs(workspace:GetDescendants())do
+        if obj:IsA("BillboardGui")or obj:IsA("SurfaceGui")then
+            for _, child in ipairs(obj:GetDescendants())do
+                if(child:IsA("TextLabel")or child:IsA("TextButton"))and child.Text then
+                    if child.Text:upper():find("REBIRTH READY!")then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
 end
-end
-end
-for _, obj in ipairs(workspace:GetDescendants())do
-if obj:IsA("BillboardGui")or obj:IsA("SurfaceGui")then
-for _, child in ipairs(obj:GetDescendants())do
-if(child:IsA("TextLabel")or child:IsA("TextButton"))and child.Text then
-if child.Text:upper():find("REBIRTH READY!")then
-return true
-end
-end
-end
-end
-end
-return false
-end
-local autoTowerReady=false
-CreateToggle(mainTab,"⏳ Auto Tower Ready (Rebirth Ready)",false,function(s)
-autoTowerReady=s
+
+local towerReady=false
+CreateToggle(mainTab,"⚡ Tower Ready",false,function(s)
+towerReady=s
 if s then
 spawn(function()
-local lastReady=false
-while autoTowerReady do
-local currentReady=findRebirthReady()
-if currentReady and not lastReady then
--- Tạm dừng tower start trong 10 giây
-pauseTowerStart = true
-pcall(function()RS.Remotes.TowerSurrender:InvokeServer()end)
-wait(10)
-pauseTowerStart = false
-wait(3) -- chờ thêm 3 giây để ổn định
-end
-lastReady=currentReady
-wait(0.5)
-end
+    while towerReady do
+        local currentReady=findRebirthReady()
+        if currentReady then
+            pauseTowerStart=true
+            pcall(function() RS.Remotes.TowerSurrender:InvokeServer() end)
+            wait(10)
+            pauseTowerStart=false
+            wait(3)
+        end
+        wait(0.8)
+    end
 end)
 end
 end)
 
--- Misc Tab: Leaderstats
-local sl=Instance.new("TextLabel")
-sl.Size=UDim2.new(1,-10,0,150)
-sl.Position=UDim2.new(0,5,0,5)
-sl.BackgroundTransparency=1
-sl.Text="Loading..."
-sl.TextColor3=Color3.fromRGB(220,220,220)
-sl.TextSize=14
-sl.Font=Enum.Font.GothamMedium
-sl.TextWrapped=true
-sl.TextXAlignment=Enum.TextXAlignment.Left
-sl.TextYAlignment=Enum.TextYAlignment.Top
-sl.Parent=miscTab
-local function upStats()
-local ls=Player:FindFirstChild("leaderstats")
-if not ls then sl.Text="No leaderstats"return end
-local t=""
-for _,s in ipairs(ls:GetChildren())do t=t..s.Name..": "..tostring(s.Value).."\n"end
-sl.Text=t
-end
-spawn(function()while true do upStats()wait(1)end end)
+local statsFrame=Instance.new("Frame")
+statsFrame.Size=UDim2.new(1,-10,0,120)
+statsFrame.Position=UDim2.new(0,5,0,5)
+statsFrame.BackgroundColor3=Color3.fromRGB(30,30,38)
+statsFrame.Parent=miscTab
+C(statsFrame,8)
+S(statsFrame,Color3.fromRGB(50,50,60),1)
 
--- Canvas và Tab Switching
+local statsLabel=Instance.new("TextLabel")
+statsLabel.Size=UDim2.new(1,-10,1,-10)
+statsLabel.Position=UDim2.new(0,5,0,5)
+statsLabel.BackgroundTransparency=1
+statsLabel.Text="Loading..."
+statsLabel.TextColor3=Color3.fromRGB(220,220,220)
+statsLabel.TextSize=13
+statsLabel.Font=Enum.Font.GothamMedium
+statsLabel.TextWrapped=true
+statsLabel.TextXAlignment=Enum.TextXAlignment.Left
+statsLabel.TextYAlignment=Enum.TextYAlignment.Top
+statsLabel.Parent=statsFrame
+
+local function updateStats()
+    local ls=Player:FindFirstChild("leaderstats")
+    if not ls then
+        statsLabel.Text="No leaderstats"
+        return
+    end
+    local corn=ls:FindFirstChild("Corn") or ls:FindFirstChild("Corn Farm")
+    local tower=ls:FindFirstChild("Tower")
+    local money=ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
+    local text=""
+    if corn then text=text.."🌽 Corn Farm: "..corn.Value.."/s\n" end
+    if tower then text=text.."🗼 Current Tower: "..tower.Value.."\n" end
+    if money then text=text.."💰 Money: "..money.Value.."\n" end
+    if text=="" then
+        for _,s in ipairs(ls:GetChildren())do
+            text=text..s.Name..": "..tostring(s.Value).."\n"
+        end
+    end
+    statsLabel.Text=text
+end
+spawn(function()while true do updateStats()wait(1)end end)
+
 local function calcCanvas()
 local h=0
 for _,ch in ipairs(CP:GetChildren())do
@@ -316,13 +412,12 @@ task.wait(0.05)
 calcCanvas()
 end
 TMain.MouseButton1Click:Connect(function()switchTab("Main")end)
-TMisc.MouseButton1Click:Connect(function()switchTab("Misc")end)
+TMisc.MouseButton1Click:Connect(function()switchTab("Stats")end)
 local function onToggleAdded()task.wait(0.05)calcCanvas()end
 mainTab.ChildAdded:Connect(onToggleAdded)
 miscTab.ChildAdded:Connect(onToggleAdded)
 switchTab("Main")
 
--- Bubble và kéo thả
 local bubble=Instance.new("ImageButton")
 bubble.Size=UDim2.new(0,50,0,50)
 bubble.Position=UDim2.new(0,15,0.5,-25)
