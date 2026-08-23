@@ -12,7 +12,6 @@ SG.Parent = Player:WaitForChild("PlayerGui")
 local rainbow = false
 local rainbowHue = 0
 
--- ================== UTILITIES ==================
 local function C(o, r)
     local c = Instance.new("UICorner")
     c.CornerRadius = UDim.new(0, r)
@@ -46,7 +45,6 @@ local function rainbowLoop()
 end
 spawn(rainbowLoop)
 
--- Title bar
 local TB = Instance.new("Frame")
 TB.Size = UDim2.new(1, 0, 0, 35)
 TB.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
@@ -481,7 +479,7 @@ local function updateTowerInfo()
             currentTower = tostring(tower.Value)
         end
     end
-    towerInfoLabel.Text = "TowerCD: " .. cdText .. "\nText: " .. textStatus .. "\nCurrentTower: " .. currentTower
+    towerInfoLabel.Text = "🕒 TowerCD: " .. cdText .. "\n💬 Text: " .. textStatus .. "\n🗼 CurrentTower: " .. currentTower
 end
 
 spawn(function()
@@ -519,11 +517,13 @@ local function updateStats()
         statsLabel.Text = "No leaderstats"
         return
     end
-    local corn = ls:FindFirstChild("Corn") or ls:FindFirstChild("Corn Farm")
+    local corn = ls:FindFirstChild("Corn/s") or ls:FindFirstChild("Corn Farm")
     local tower = ls:FindFirstChild("Tower")
     local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
+    local level = ls:FindFirstChild("Level")
     local text = ""
-    if corn then text = text .. "🌽 Corn Farm: " .. corn/s.Value .. "/s\n" end
+    if level then text = text .. "⭐ Level: " .. level.Value .. "/s\n" end
+    if corn then text = text .. "🌽 Corn Farm: " .. corn.Value .. "\n" end
     if tower then text = text .. "🗼 Current Tower: " .. tower.Value .. "\n" end
     if money then text = text .. "💰 Money: " .. money.Value .. "\n" end
     if text == "" then
@@ -577,7 +577,7 @@ TMain.MouseButton1Click:Connect(function()
     switchTab("Main")
 end)
 TMisc.MouseButton1Click:Connect(function()
-    switchTab("Stats")
+    switchTab("Player")
 end)
 
 local function onToggleAdded()
