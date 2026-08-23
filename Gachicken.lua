@@ -217,6 +217,7 @@ end)
 local ne=false
 local currentTarget=nil
 local isWalking=false
+local incubatorTimer=0
 local function moveToPosition(targetPos)
     local char=Player.Character
     if not char then return false end
@@ -251,6 +252,15 @@ if s then
 spawn(function()
     while ne do
         pcall(function()
+            -- Gửi IncubatorClaim mỗi 30 giây
+            incubatorTimer = incubatorTimer + 1
+            if incubatorTimer >= 30 then
+                pcall(function()
+                    RS.Remotes.IncubatorClaim:InvokeServer()
+                end)
+                incubatorTimer = 0
+            end
+            
             local char=Player.Character
             if not char then wait(1) return end
             local root=char:FindFirstChild("HumanoidRootPart")
@@ -277,7 +287,7 @@ spawn(function()
                 end
             end
         end)
-        wait(randDelay(2.5, 3.5))
+        wait(1)
     end
 end)
 end
