@@ -523,7 +523,7 @@ local function updateStats()
     local tower = ls:FindFirstChild("Tower")
     local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
     local text = ""
-    if corn then text = text .. "🌽 Corn Farm: " .. corn.Value .. "/s\n" end
+    if corn then text = text .. "🌽 Corn Farm: " .. corn/s.Value .. "/s\n" end
     if tower then text = text .. "🗼 Current Tower: " .. tower.Value .. "\n" end
     if money then text = text .. "💰 Money: " .. money.Value .. "\n" end
     if text == "" then
