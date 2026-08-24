@@ -56,7 +56,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡ GACF 1.1.0"
+TT.Text = "⚡ GACF 1.1.1"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -423,7 +423,7 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                         local currentTower = getCurrentTower()
                         pcall(function()
                             if currentTower > 0 then
-                                RS.Remotes.TowerElevator:InvokeServer(currentTower)
+                                RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
                             else
                                 RS.Remotes.TowerStart:InvokeServer()
                             end
