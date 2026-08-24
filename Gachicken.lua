@@ -56,7 +56,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡ GACF 1.1.1"
+TT.Text = "⚡ GACF 1.1.2"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -305,7 +305,7 @@ local function moveToPosition(targetPos)
     if not root or not humanoid then return false end
 
     local distance = (root.Position - targetPos).Magnitude
-    if distance < 5 then
+    if distance < 1 then
         humanoid:MoveTo(root.Position)
         return true
     end
@@ -424,6 +424,7 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                         pcall(function()
                             if currentTower > 0 then
                                 RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
+                                RS.Remotes.TowerStart:InvokeServer()
                             else
                                 RS.Remotes.TowerStart:InvokeServer()
                             end
