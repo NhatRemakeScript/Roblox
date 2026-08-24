@@ -56,7 +56,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡ GACF 1.1.2"
+TT.Text = "⚡ GACF 1.2.0"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -535,49 +535,129 @@ spawn(function()
     end
 end)
 
--- ================== STATS TAB ==================
+-- ================== STATS TAB (THIẾT KẾ LẠI) ==================
 local statsFrame = Instance.new("Frame")
-statsFrame.Size = UDim2.new(1, -10, 0, 120)
+statsFrame.Size = UDim2.new(1, -10, 0, 200)
 statsFrame.Position = UDim2.new(0, 5, 0, 5)
 statsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 statsFrame.Parent = miscTab
 C(statsFrame, 8)
-S(statsFrame, Color3.fromRGB(50, 50, 60), 1)
+S(statsFrame, Color3.fromRGB(255, 215, 0), 1.5)
 
-local statsLabel = Instance.new("TextLabel")
-statsLabel.Size = UDim2.new(1, -10, 1, -10)
-statsLabel.Position = UDim2.new(0, 5, 0, 5)
-statsLabel.BackgroundTransparency = 1
-statsLabel.Text = "Loading..."
-statsLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-statsLabel.TextSize = 13
-statsLabel.Font = Enum.Font.GothamMedium
-statsLabel.TextWrapped = true
-statsLabel.TextXAlignment = Enum.TextXAlignment.Left
-statsLabel.TextYAlignment = Enum.TextYAlignment.Top
-statsLabel.Parent = statsFrame
+local statsTitle = Instance.new("TextLabel")
+statsTitle.Size = UDim2.new(1, -20, 0, 25)
+statsTitle.Position = UDim2.new(0, 10, 0, 10)
+statsTitle.BackgroundTransparency = 1
+statsTitle.Text = "📊 THỐNG KÊ NGƯỜI CHƠI"
+statsTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+statsTitle.TextSize = 14
+statsTitle.Font = Enum.Font.GothamBold
+statsTitle.TextXAlignment = Enum.TextXAlignment.Center
+statsTitle.Parent = statsFrame
 
+-- Tạo khung lục giác dài (hexagon stretched)
+local function createHexStat(parent, position, emoji, label, value)
+    local hexFrame = Instance.new("Frame")
+    hexFrame.Size = UDim2.new(1, -20, 0, 40)
+    hexFrame.Position = position
+    hexFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    hexFrame.Parent = parent
+    C(hexFrame, 10)
+    S(hexFrame, Color3.fromRGB(255, 215, 0), 1)
+
+    -- Emoji (bên trái)
+    local emojiLabel = Instance.new("TextLabel")
+    emojiLabel.Size = UDim2.new(0, 35, 1, 0)
+    emojiLabel.Position = UDim2.new(0, 8, 0, 0)
+    emojiLabel.BackgroundTransparency = 1
+    emojiLabel.Text = emoji
+    emojiLabel.TextSize = 18
+    emojiLabel.TextXAlignment = Enum.TextXAlignment.Center
+    emojiLabel.TextYAlignment = Enum.TextYAlignment.Center
+    emojiLabel.Parent = hexFrame
+
+    -- Label (tên chỉ số)
+    local labelText = Instance.new("TextLabel")
+    labelText.Size = UDim2.new(0, 110, 1, 0)
+    labelText.Position = UDim2.new(0, 45, 0, 0)
+    labelText.BackgroundTransparency = 1
+    labelText.Text = label
+    labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    labelText.TextSize = 12
+    labelText.Font = Enum.Font.GothamMedium
+    labelText.TextXAlignment = Enum.TextXAlignment.Left
+    labelText.TextYAlignment = Enum.TextYAlignment.Center
+    labelText.Parent = hexFrame
+
+    -- Value (giá trị)
+    local valueText = Instance.new("TextLabel")
+    valueText.Size = UDim2.new(1, -165, 1, 0)
+    valueText.Position = UDim2.new(0, 155, 0, 0)
+    valueText.BackgroundTransparency = 1
+    valueText.Text = value
+    valueText.TextColor3 = Color3.fromRGB(255, 215, 0)
+    valueText.TextSize = 13
+    valueText.Font = Enum.Font.GothamBold
+    valueText.TextXAlignment = Enum.TextXAlignment.Right
+    valueText.TextYAlignment = Enum.TextYAlignment.Center
+    valueText.Parent = hexFrame
+
+    return valueText
+end
+
+-- Tạo các khung chỉ số
+local cornValue, towerValue, moneyValue, levelValue
+
+local function createAllStats()
+    cornValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 40), "🌽", "Corn Farm:", "0/s")
+    towerValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 85), "🗼", "Tower:", "0")
+    moneyValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 130), "💰", "Money:", "0")
+    levelValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 175), "⭐", "Level:", "0")
+end
+
+createAllStats()
+
+-- Hàm cập nhật Stats (sử dụng đúng biến của bạn)
 local function updateStats()
     local ls = Player:FindFirstChild("leaderstats")
     if not ls then
-        statsLabel.Text = "No leaderstats"
+        cornValue.Text = "N/A"
+        towerValue.Text = "N/A"
+        moneyValue.Text = "N/A"
+        levelValue.Text = "N/A"
         return
     end
+
+    -- Sử dụng đúng các biến bạn khai báo
     local corn = ls:FindFirstChild("Corn/s") or ls:FindFirstChild("Corn Farm")
     local tower = ls:FindFirstChild("Tower")
     local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
     local level = ls:FindFirstChild("Level")
-    local text = ""
-    if level then text = text .. "⭐ Level: " .. level.Value .. "\n" end
-    if corn then text = text .. "🌽 Corn Farm: " .. corn.Value .. " mỗi giây\n" end
-    if tower then text = text .. "🗼 Current Tower: " .. tower.Value .. "\n" end
-    if money then text = text .. "💰 Money: " .. money.Value .. "\n" end
-    if text == "" then
-        for _, s in ipairs(ls:GetChildren()) do
-            text = text .. s.Name .. ": " .. tostring(s.Value) .. "\n"
-        end
+
+    -- Cập nhật giá trị
+    if corn then
+        cornValue.Text = tostring(corn.Value) .. "/s"
+    else
+        cornValue.Text = "N/A"
     end
-    statsLabel.Text = text
+
+    if tower then
+        towerValue.Text = tostring(tower.Value)
+    else
+        towerValue.Text = "N/A"
+    end
+
+    if money then
+        moneyValue.Text = tostring(money.Value)
+    else
+        moneyValue.Text = "N/A"
+    end
+
+    if level then
+        levelValue.Text = tostring(level.Value)
+    else
+        levelValue.Text = "N/A"
+    end
 end
 
 spawn(function()
@@ -586,7 +666,6 @@ spawn(function()
         wait(1)
     end
 end)
-
 -- ================== CANVAS + TAB SWITCH ==================
 local function calcCanvas()
     local h = 0
@@ -640,7 +719,7 @@ local bubble = Instance.new("ImageButton")
 bubble.Size = UDim2.new(0, 50, 0, 50)
 bubble.Position = UDim2.new(0, 15, 0.5, -25)
 bubble.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-bubble.Image = "rbxassetid://1316385681"
+bubble.Image = "rbxassetid://11566993729"
 bubble.ImageColor3 = Color3.fromRGB(0, 200, 255)
 bubble.ImageTransparency = 0.3
 bubble.Parent = SG
@@ -650,7 +729,7 @@ S(bubble, Color3.fromRGB(0, 200, 255), 2)
 local bl = Instance.new("TextLabel")
 bl.Size = UDim2.new(1, 0, 1, 0)
 bl.BackgroundTransparency = 1
-bl.Text = "⚡"
+bl.Text = " "
 bl.TextColor3 = Color3.fromRGB(255, 255, 255)
 bl.TextSize = 20
 bl.Font = Enum.Font.GothamBold
