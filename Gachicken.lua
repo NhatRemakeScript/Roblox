@@ -35,12 +35,13 @@ MF.Parent = SG
 C(MF, 12)
 local mainStroke = S(MF, Color3.fromRGB(255, 0, 0), 1.5)
 
+-- Viền rainbow chuyển màu liên tục (đỏ -> cam -> vàng -> xanh lá -> xanh dương -> tím -> hồng -> đỏ)
 local function rainbowLoop()
     while true do
-        rainbowHue = (rainbowHue + 0.01) % 1
+        rainbowHue = (rainbowHue + 0.005) % 1  -- Tăng chậm để chuyển màu mượt
         local col = Color3.fromHSV(rainbowHue, 1, 1)
         mainStroke.Color = col
-        wait(0.05)
+        wait(0.03)
     end
 end
 spawn(rainbowLoop)
@@ -242,7 +243,6 @@ local function isGuiActuallyVisible(gui)
         end
         current = current.Parent
     end
-    -- Kiểm tra kích thước thực tế (nếu 0 thì coi như ẩn)
     if gui.AbsoluteSize.X <= 0 or gui.AbsoluteSize.Y <= 0 then
         return false
     end
@@ -269,6 +269,31 @@ local function getRebirthNoticeStatus()
     end
     if not found then return "—" end
     return visibleOnScreen and "✔" or "✖"
+end
+
+-- Lấy giá trị Tower từ leaderstats
+local function getCurrentTower()
+    local ls = Player:FindFirstChild("leaderstats")
+    if ls then
+        local tower = ls:FindFirstChild("Tower")
+        if tower then
+            return tonumber(tower.Value) or 0
+        end
+    end
+    return 0
+end
+
+-- Kiểm tra TowerContinue có đang hiển thị trong PlayerGui không
+local function hasTowerContinue()
+    local playerGui = Player:WaitForChild("PlayerGui")
+    local tc = playerGui:FindFirstChild("TowerContinue")
+    if not tc then return false end
+    for _, child in ipairs(tc:GetDescendants()) do
+        if child:IsA("GuiObject") and child.Visible and isGuiActuallyVisible(child) then
+            return true
+        end
+    end
+    return false
 end
 
 -- Hàm di chuyển nhân vật tới vị trí
@@ -383,17 +408,25 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
     end
 end)
 
--- ================== AUTO TOWER (GỘP CHUNG TOWER READY) ==================
+-- ================== AUTO TOWER (GỘP CHUNG TOWER READY + TOWER CONTINUE) ==================
 CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     autoTower = s
     if s then
         towerCooldown = randDelay(27.5, 29.7)
+        local lastTowerContinueDecline = 0
+
+        -- Vòng lặp chính: gửi TowerStart hoặc TowerElevator
         spawn(function()
             while autoTower do
                 if not pauseTowerStart then
                     if towerCooldown <= 0 then
+                        local currentTower = getCurrentTower()
                         pcall(function()
-                            RS.Remotes.TowerStart:InvokeServer()
+                            if currentTower > 0 then
+                                RS.Remotes.TowerElevator:InvokeServer(currentTower)
+                            else
+                                RS.Remotes.TowerStart:InvokeServer()
+                            end
                         end)
                         towerCooldown = randDelay(27.5, 29.7)
                     else
@@ -404,10 +437,23 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
             end
         end)
 
+        -- Vòng lặp kiểm tra TowerContinue và gửi TowerContinueDecline
+        spawn(function()
+            while autoTower do
+                if hasTowerContinue() and (tick() - lastTowerContinueDecline > 1.0) then
+                    pcall(function()
+                        RS.Remotes.TowerContinueDecline:FireServer()
+                    end)
+                    lastTowerContinueDecline = tick()
+                end
+                wait(0.5)
+            end
+        end)
+
+        -- Vòng lặp kiểm tra RebirthNotice và gửi TowerSurrender
         spawn(function()
             local wasRebirthVisible = false
             while autoTower do
-                -- Kiểm tra RebirthNotice có đang hiển thị thực sự không
                 local isVisibleNow = false
                 local notice = Player:WaitForChild("PlayerGui"):FindFirstChild("RebirthNotice")
                 if notice then
@@ -421,7 +467,6 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                     end
                 end
 
-                -- Chỉ gửi surrender khi RebirthNotice hiện lên lần đầu (chuyển từ ẩn sang hiện)
                 if isVisibleNow and not wasRebirthVisible then
                     wasRebirthVisible = true
                     pauseTowerStart = true
@@ -523,7 +568,7 @@ local function updateStats()
     local level = ls:FindFirstChild("Level")
     local text = ""
     if level then text = text .. "⭐ Level: " .. level.Value .. "\n" end
-    if corn then text = text .. "🌽 Corn Farm: " .. corn.Value .. "mỗi giây\n" end
+    if corn then text = text .. "🌽 Corn Farm: " .. corn.Value .. " mỗi giây\n" end
     if tower then text = text .. "🗼 Current Tower: " .. tower.Value .. "\n" end
     if money then text = text .. "💰 Money: " .. money.Value .. "\n" end
     if text == "" then
@@ -577,7 +622,7 @@ TMain.MouseButton1Click:Connect(function()
     switchTab("Main")
 end)
 TMisc.MouseButton1Click:Connect(function()
-    switchTab("Player")
+    switchTab("Stats")
 end)
 
 local function onToggleAdded()
