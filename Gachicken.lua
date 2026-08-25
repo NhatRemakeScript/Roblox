@@ -5,18 +5,10 @@ local TS = game:GetService("TweenService")
 local RS = game:GetService("ReplicatedStorage")
 local VU = game:GetService("VirtualUser")
 
--- ================== ANTI-DETECT GUI ==================
+-- ================== GUI ==================
 local SG = Instance.new("ScreenGui")
-SG.Name = "Settings_" .. math.random(100000, 999999)
-
-if gethui then
-    SG.Parent = gethui()
-elseif syn and syn.protect_gui then
-    syn.protect_gui(SG)
-    SG.Parent = game:GetService("CoreGui")
-else
-    SG.Parent = Player:WaitForChild("PlayerGui")
-end
+SG.Name = "Menu_" .. math.random(1000, 9999)
+SG.Parent = Player:WaitForChild("PlayerGui")
 
 local rainbowHue = 0
 
@@ -37,9 +29,7 @@ end
 local function safeInvoke(remoteName, ...)
     local remote = RS.Remotes:FindFirstChild(remoteName)
     if not remote then return false end
-    
     wait(math.random(50, 150) / 100)
-    
     local success = pcall(function()
         if remote:IsA("RemoteFunction") then
             return remote:InvokeServer(...)
@@ -48,7 +38,6 @@ local function safeInvoke(remoteName, ...)
             return true
         end
     end)
-    
     return success
 end
 
@@ -87,31 +76,25 @@ local isShowingNotification = false
 
 local function showNotification(text, duration)
     table.insert(notificationQueue, {text = text, duration = duration or 3})
-    
     if not isShowingNotification then
         isShowingNotification = true
         spawn(function()
             while #notificationQueue > 0 do
                 local notif = table.remove(notificationQueue, 1)
-
                 notificationFrame.Visible = true
                 notificationLabel.Text = notif.text
-
                 notificationFrame.Position = UDim2.new(1, -260, 0, -50)
                 local tweenDown = TS:Create(notificationFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
                     Position = UDim2.new(1, -260, 0, 10)
                 })
                 tweenDown:Play()
                 tweenDown.Completed:Wait()
-
                 wait(notif.duration)
-
                 local tweenUp = TS:Create(notificationFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
                     Position = UDim2.new(1, -260, 0, -50)
                 })
                 tweenUp:Play()
                 tweenUp.Completed:Wait()
-                
                 notificationFrame.Visible = false
                 wait(0.2)
             end
@@ -130,14 +113,13 @@ MF.Parent = SG
 C(MF, 12)
 local mainStroke = S(MF, Color3.fromRGB(255, 0, 0), 1.5)
 
-local function rainbowLoop()
+spawn(function()
     while true do
         rainbowHue = (rainbowHue + 0.01) % 1
         mainStroke.Color = Color3.fromHSV(rainbowHue, 1, 1)
         wait(0.01)
     end
-end
-spawn(rainbowLoop)
+end)
 
 local TB = Instance.new("Frame")
 TB.Size = UDim2.new(1, 0, 0, 35)
@@ -149,7 +131,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡ DucNhat 2.0.3 FULL"
+TT.Text = "⚡ DucNhat 2.0.4"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -212,7 +194,7 @@ CL.Padding = UDim.new(0, 8)
 CL.SortOrder = Enum.SortOrder.LayoutOrder
 CL.Parent = CP
 
--- ================== TOGGLE SYSTEM ==================
+-- ================== TOGGLE SYSTEM (ANIMATION 0.2s) ==================
 local function CreateToggle(parent, text, def, cb)
     local fr = Instance.new("Frame")
     fr.Size = UDim2.new(1, 0, 0, 35)
@@ -234,28 +216,34 @@ local function CreateToggle(parent, text, def, cb)
     lb.Parent = fr
 
     local sw = Instance.new("Frame")
-    sw.Size = UDim2.new(0, 40, 0, 22)
-    sw.Position = UDim2.new(1, -52, 0.5, -11)
-    sw.BackgroundColor3 = def and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(60, 60, 70)
+    sw.Size = UDim2.new(0, 45, 0, 24)
+    sw.Position = UDim2.new(1, -57, 0.5, -12)
+    sw.BackgroundColor3 = def and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(60, 60, 70)
     sw.Parent = fr
-    C(sw, 22)
+    C(sw, 24)
 
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 18, 0, 18)
-    knob.Position = def and UDim2.new(0, 19, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
-    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Position = def and UDim2.new(0, 24, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+    knob.AnchorPoint = Vector2.new(0, 0.5)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     knob.Parent = sw
-    C(knob, 4)
+    C(knob, 18)
 
     local state = def or false
+    local isAnimating = false
+
     local function setState(ns)
+        if isAnimating then return end
+        isAnimating = true
         state = ns
-        local targetPos = state and UDim2.new(0, 19, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
-        local targetCol = state and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(60, 60, 70)
-        local targetRot = state and 45 or 0
-        TS:Create(sw, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {BackgroundColor3 = targetCol}):Play()
-        TS:Create(knob, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Position = targetPos, Rotation = targetRot}):Play()
+        local targetPos = state and UDim2.new(0, 24, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+        local targetCol = state and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(60, 60, 70)
+        TS:Create(sw, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = targetCol}):Play()
+        local tween = TS:Create(knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = targetPos})
+        tween:Play()
+        tween.Completed:Wait()
+        isAnimating = false
         if cb then cb(state) end
     end
 
@@ -363,13 +351,11 @@ local function moveToPosition(targetPos)
     local root = char:FindFirstChild("HumanoidRootPart")
     local humanoid = char:FindFirstChild("Humanoid")
     if not root or not humanoid then return false end
-
     local distance = (root.Position - targetPos).Magnitude
     if distance < 1 then
         humanoid:MoveTo(root.Position)
         return true
     end
-
     humanoid:MoveTo(targetPos)
     local isWalking = true
     local startTime = tick()
@@ -389,17 +375,14 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
         spawn(function()
             local isRebirthing = false
             local rebirthStartTime = 0
-            
             while reb do
                 pcall(function()
                     local rebirthReady = isRebirthReadyVisible()
-                    
                     if rebirthReady and not isRebirthing then
                         isRebirthing = true
                         rebirthStartTime = tick()
                         showNotification("🔄 Rebirth Ready!")
                     end
-                    
                     if isRebirthing then
                         if tick() - rebirthStartTime < 10 then
                             safeInvoke("Rebirth")
@@ -425,7 +408,6 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                 pcall(function()
                     local currentTower = getCurrentTower()
                     local currentMoney = getMoney()
-                    
                     if currentTower == 0 then
                         if currentMoney >= 360 then
                             safeInvoke("BuyGenerator", 1)
@@ -455,13 +437,11 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
                         safeInvoke("IncubatorClaim")
                         incubatorTimer = 0
                     end
-
                     local char = Player.Character
                     if not char then wait(1) return end
                     local root = char:FindFirstChild("HumanoidRootPart")
                     local humanoid = char:FindFirstChild("Humanoid")
                     if not root or not humanoid then wait(1) return end
-
                     local egg = nil
                     for _, v in pairs(workspace:GetDescendants()) do
                         if v:IsA("Model") and v.Name:find("NestEgg") then
@@ -472,7 +452,6 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
                             end
                         end
                     end
-
                     if egg then
                         local pos = egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChild("PrimaryPart") or egg:FindFirstChildWhichIsA("BasePart")
                         if pos then
@@ -495,7 +474,6 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     autoTower = s
     if s then
         towerCooldown = smartDelay(27.3, 29.5)
-        
         spawn(function()
             while autoTower do
                 if towerCooldown <= 0 then
@@ -606,12 +584,10 @@ local function updateStats()
         levelValue.Text = "N/A"
         return
     end
-
     local corn = ls:FindFirstChild("Corn/s") or ls:FindFirstChild("Corn Farm")
     local tower = ls:FindFirstChild("Tower")
     local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
     local level = ls:FindFirstChild("Level")
-
     if corn then cornValue.Text = tostring(corn.Value) .. "/s" else cornValue.Text = "N/A" end
     if tower then towerValue.Text = tostring(tower.Value) else towerValue.Text = "N/A" end
     if money then moneyValue.Text = tostring(money.Value) else moneyValue.Text = "N/A" end
