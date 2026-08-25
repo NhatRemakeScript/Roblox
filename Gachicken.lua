@@ -3,6 +3,7 @@
     Version: 1.0
 ]]
 
+-- Tải Rayfield
 local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source'))()
 
 local Players = game:GetService("Players")
@@ -314,19 +315,6 @@ SettingsTab:CreateDropdown({
     Flag = "Theme",
     Callback = function(Option)
         Rayfield:ChangeTheme(Option)
-    end
-})
-
--- Notification Duration
-SettingsTab:CreateSlider({
-    Name = "⏱️ Notification Duration",
-    Range = {2, 10},
-    Increment = 0.5,
-    Suffix = "s",
-    CurrentValue = 6.5,
-    Flag = "NotifDuration",
-    Callback = function(Value)
-        Rayfield.NotificationDuration = Value
     end
 })
 
