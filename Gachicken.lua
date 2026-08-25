@@ -121,7 +121,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡ GACF 1.4.0"
+TT.Text = "⚡ GACF 1.5.1"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -456,7 +456,6 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
     end
 end)
 
--- ================== AUTO FEEDER (CHỈ GEN 1) ==================
 CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
     if s then
@@ -572,7 +571,6 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
     end
 end)
 
--- ================== AUTO TOWER ==================
 CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     autoTower = s
     if s then
@@ -652,7 +650,6 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     end
 end)
 
--- ================== TOWER INFO FRAME ==================
 local towerInfoFrame = Instance.new("Frame")
 towerInfoFrame.Size = UDim2.new(1, 0, 0, 50)
 towerInfoFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
@@ -697,64 +694,64 @@ spawn(function()
     end
 end)
 
--- ================== STATS TAB ==================
+-- ================== STATS TAB (MỞ RỘNG ĐẦY KHUNG) ==================
 local statsFrame = Instance.new("Frame")
-statsFrame.Size = UDim2.new(1, -10, 0, 200)
-statsFrame.Position = UDim2.new(0, 5, 0, 5)
+statsFrame.Size = UDim2.new(1, 0, 1, 0)  -- Chiếm toàn bộ khung
+statsFrame.Position = UDim2.new(0, 0, 0, 0)
 statsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 statsFrame.Parent = miscTab
 C(statsFrame, 8)
 S(statsFrame, Color3.fromRGB(255, 215, 0), 1.5)
 
 local statsTitle = Instance.new("TextLabel")
-statsTitle.Size = UDim2.new(1, -20, 0, 25)
-statsTitle.Position = UDim2.new(0, 10, 0, 10)
+statsTitle.Size = UDim2.new(1, -20, 0, 30)
+statsTitle.Position = UDim2.new(0, 10, 0, 15)
 statsTitle.BackgroundTransparency = 1
 statsTitle.Text = "📊 PLAYER STATS"
 statsTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
-statsTitle.TextSize = 14
+statsTitle.TextSize = 16
 statsTitle.Font = Enum.Font.GothamBold
 statsTitle.TextXAlignment = Enum.TextXAlignment.Center
 statsTitle.Parent = statsFrame
 
 local function createHexStat(parent, position, emoji, label, value)
     local hexFrame = Instance.new("Frame")
-    hexFrame.Size = UDim2.new(1, -20, 0, 40)
+    hexFrame.Size = UDim2.new(1, -20, 0, 45)  -- Chiều cao tăng lên 45
     hexFrame.Position = position
     hexFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
     hexFrame.Parent = parent
-    C(hexFrame, 10)
-    S(hexFrame, Color3.fromRGB(255, 215, 0), 1)
+    C(hexFrame, 12)
+    S(hexFrame, Color3.fromRGB(255, 215, 0), 1.5)
 
     local emojiLabel = Instance.new("TextLabel")
-    emojiLabel.Size = UDim2.new(0, 35, 1, 0)
-    emojiLabel.Position = UDim2.new(0, 8, 0, 0)
+    emojiLabel.Size = UDim2.new(0, 40, 1, 0)
+    emojiLabel.Position = UDim2.new(0, 10, 0, 0)
     emojiLabel.BackgroundTransparency = 1
     emojiLabel.Text = emoji
-    emojiLabel.TextSize = 18
+    emojiLabel.TextSize = 22
     emojiLabel.TextXAlignment = Enum.TextXAlignment.Center
     emojiLabel.TextYAlignment = Enum.TextYAlignment.Center
     emojiLabel.Parent = hexFrame
 
     local labelText = Instance.new("TextLabel")
-    labelText.Size = UDim2.new(0, 110, 1, 0)
-    labelText.Position = UDim2.new(0, 45, 0, 0)
+    labelText.Size = UDim2.new(0, 120, 1, 0)
+    labelText.Position = UDim2.new(0, 55, 0, 0)
     labelText.BackgroundTransparency = 1
     labelText.Text = label
     labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    labelText.TextSize = 12
+    labelText.TextSize = 14
     labelText.Font = Enum.Font.GothamMedium
     labelText.TextXAlignment = Enum.TextXAlignment.Left
     labelText.TextYAlignment = Enum.TextYAlignment.Center
     labelText.Parent = hexFrame
 
     local valueText = Instance.new("TextLabel")
-    valueText.Size = UDim2.new(1, -165, 1, 0)
-    valueText.Position = UDim2.new(0, 155, 0, 0)
+    valueText.Size = UDim2.new(1, -185, 1, 0)
+    valueText.Position = UDim2.new(0, 175, 0, 0)
     valueText.BackgroundTransparency = 1
     valueText.Text = value
     valueText.TextColor3 = Color3.fromRGB(255, 215, 0)
-    valueText.TextSize = 13
+    valueText.TextSize = 15
     valueText.Font = Enum.Font.GothamBold
     valueText.TextXAlignment = Enum.TextXAlignment.Right
     valueText.TextYAlignment = Enum.TextYAlignment.Center
@@ -766,10 +763,10 @@ end
 local cornValue, towerValue, moneyValue, levelValue
 
 local function createAllStats()
-    cornValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 40), "🌽", "Corn Farm:", "0/s")
-    towerValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 85), "🗼", "Tower:", "0")
-    moneyValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 130), "💰", "Money:", "0")
-    levelValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 175), "⭐", "Level:", "0")
+    cornValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 55), "🌽", "Corn Farm:", "0/s")
+    towerValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 105), "🗼", "Tower:", "0")
+    moneyValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 155), "💰", "Money:", "0")
+    levelValue = createHexStat(statsFrame, UDim2.new(0, 10, 0, 205), "⭐", "Level:", "0")
 end
 
 createAllStats()
@@ -820,7 +817,6 @@ spawn(function()
         wait(1)
     end
 end)
-
 -- ================== CANVAS + TAB SWITCH ==================
 local function calcCanvas()
     local h = 0
