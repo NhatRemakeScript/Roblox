@@ -1,48 +1,23 @@
--- Fix lỗi Shadow cho Rayfield
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source'))()
+-- ============================================
+-- LOAD VÀ FIX RAYFIELD
+-- ============================================
+local RayfieldSource = game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source')
 
--- Patch lỗi Shadow
-local oldCreateWindow = Rayfield.CreateWindow
-Rayfield.CreateWindow = function(...)
-    local window = oldCreateWindow(...)
-    -- Vô hiệu hóa Shadow trong TabList Template
-    local original = window._tabListTemplate
-    if original then
-        local shadow = original:FindFirstChild("Shadow")
-        if shadow then
-            shadow:Destroy()
-        end
-    end
-    return window
-end
+-- Fix lỗi Shadow
+local FixedSource = RayfieldSource:gsub('Shadow = Instance%.new%( "ImageLabel" %)', '-- Shadow = Instance.new("ImageLabel")')
+FixedSource = FixedSource:gsub('Shadow%.Parent = frame', '-- Shadow.Parent = frame')
+FixedSource = FixedSource:gsub('Shadow%.Image = "rbxassetid://1316048114"', '-- Shadow.Image = "rbxassetid://1316048114"')
+FixedSource = FixedSource:gsub('Shadow%.ImageTransparency = 1', '-- Shadow.ImageTransparency = 1')
+FixedSource = FixedSource:gsub('Shadow%.ZIndex = 0', '-- Shadow.ZIndex = 0')
+FixedSource = FixedSource:gsub('Shadow%.Size = UDim2%.new%(1, 10, 1, 10%)', '-- Shadow.Size = UDim2.new(1, 10, 1, 10)')
+FixedSource = FixedSource:gsub('Shadow%.Position = UDim2%.new%(0.5, 0, 0.5, 0%)', '-- Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)')
+FixedSource = FixedSource:gsub('Shadow%.AnchorPoint = Vector2%.new%(0.5, 0.5%)', '-- Shadow.AnchorPoint = Vector2.new(0.5, 0.5)')
+FixedSource = FixedSource:gsub('local Shadow = Instance%.new%( "ImageLabel" %)', '-- local Shadow = Instance.new("ImageLabel")')
 
--- Hoặc sửa trực tiếp
-local function FixShadow()
-    pcall(function()
-        local main = Rayfield._main
-        if main then
-            local tablist = main:FindFirstChild("TabList")
-            if tablist then
-                local template = tablist:FindFirstChild("Template")
-                if template then
-                    local shadow = template:FindFirstChild("Shadow")
-                    if shadow then
-                        shadow:Destroy()
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- Chạy fix sau khi load
-spawn(function()
-    wait(1)
-    FixShadow()
-end)
+local Rayfield = loadstring(FixedSource)()
 
 -- ============================================
--- CODE AUTO FARM CỦA BẠN
+-- CODE AUTO FARM
 -- ============================================
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
