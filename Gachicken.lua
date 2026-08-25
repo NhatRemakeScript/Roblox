@@ -443,7 +443,7 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
     end
 end)
 
--- ================== AUTO FEEDER (FIX LỖI) ==================
+-- ================== AUTO FEEDER (FIX HOÀN CHỈNH) ==================
 CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
     if s then
@@ -454,7 +454,6 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                     local currentMoney = getMoney()
                     
                     if currentTower == 0 then
-                        -- Tower = 0 → Mua Gen 1
                         if currentMoney >= 360 then
                             pcall(function()
                                 RS.Remotes.BuyGenerator:InvokeServer(1)
@@ -462,7 +461,6 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                             showNotification("✅ Mua Generator 1 thành công!")
                         end
                     else
-                        -- Tower > 0 → Upgrade Gen 1
                         pcall(function()
                             RS.Remotes.UpgradeGenerator:InvokeServer(1)
                         end)
@@ -845,15 +843,14 @@ miscTab.ChildAdded:Connect(onToggleAdded)
 
 switchTab("Main")
 
--- ================== BUBBLE ICON ==================
+-- ================== BUBBLE ICON (FIX LỖI) ==================
 local bubble = Instance.new("ImageButton")
 bubble.Size = UDim2.new(0, 50, 0, 50)
 bubble.Position = UDim2.new(0, 15, 0.5, -25)
 bubble.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-bubble.Image = "rbxassetid://11566993729"
+bubble.Image = "rbxassetid://1316385681"  -- Dùng ID ảnh mặc định
 bubble.ImageColor3 = Color3.fromRGB(255, 255, 255)
 bubble.ImageTransparency = 0
-bubble.ScaleType = Enum.ScaleType.Fit
 bubble.Parent = SG
 C(bubble, 50)
 S(bubble, Color3.fromRGB(0, 200, 255), 2)
