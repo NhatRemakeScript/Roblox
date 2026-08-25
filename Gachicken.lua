@@ -116,7 +116,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡CC HUB 2.3.1"
+TT.Text = "⚡CC HUB 2.4.0"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -534,8 +534,8 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
         local hasSentFirstTime = false
         local towerCooldown = 0
         local wasRebirthVisible = false
+        local rebirthTimer = 0
 
-        -- Vòng lặp chính
         spawn(function()
             while autoTower do
                 if not pauseTowerStart then
@@ -558,27 +558,52 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                         showNotification("✅ Đã gửi Tower lần đầu!")
                         
                     -- === PHÁT HIỆN REBIRTH READY ===
-                    elseif rebirthReadyVisible and not wasRebirthVisible then
-                        wasRebirthVisible = true
+                    elseif rebirthReadyVisible then
+                        if not wasRebirthVisible then
+                            -- Lần đầu phát hiện rebirth
+                            wasRebirthVisible = true
+                            isCountingDown = true
+                            towerCooldown = 10
+                            rebirthTimer = tick()
+                            
+                            pcall(function()
+                                RS.Remotes.TowerSurrender:InvokeServer()
+                            end)
+                            showNotification("🔄 Rebirth Ready! Đếm 10 giây...")
+                        else
+                            -- Vẫn đang trong trạng thái rebirth
+                            if isCountingDown then
+                                if towerCooldown > 0 then
+                                    towerCooldown = towerCooldown - 0.1
+                                end
+                                
+                                if towerCooldown <= 0 then
+                                    -- Sau 10 giây → gửi TowerStart
+                                    pcall(function()
+                                        RS.Remotes.TowerStart:InvokeServer()
+                                    end)
+                                    showNotification("✅ Gửi Tower Start sau Rebirth!")
+                                    
+                                    -- Reset trạng thái
+                                    isCountingDown = false
+                                    towerCooldown = 0
+                                    wasRebirthVisible = false
+                                end
+                            end
+                        end
                         
-                        -- Set thời gian thành 10 giây
-                        isCountingDown = true
-                        towerCooldown = 10
+                    -- === TOWERCONTINUE HIỆN → ĐẾM 20 GIÂY ===
+                    elseif towerContinueVisible then
+                        if not isCountingDown then
+                            isCountingDown = true
+                            towerCooldown = 20
+                            showNotification("🕒 Đếm 20 giây...")
+                        end
                         
-                        -- Đầu hàng tháp
-                        pcall(function()
-                            RS.Remotes.TowerSurrender:InvokeServer()
-                        end)
-                        showNotification("🔄 Rebirth Ready! Đếm 10 giây...")
-                        
-                    -- === ĐANG ĐẾM THỜI GIAN ===
-                    elseif isCountingDown then
-                        -- Đếm ngược
                         if towerCooldown > 0 then
                             towerCooldown = towerCooldown - 0.1
                         end
                         
-                        -- Khi đếm xong → gửi
                         if towerCooldown <= 0 then
                             local currentTower = getCurrentTower()
                             pcall(function()
@@ -593,15 +618,8 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                             
                             isCountingDown = false
                             towerCooldown = 0
-                            wasRebirthVisible = false
                             showNotification("✅ Đã gửi Tower Start!")
                         end
-                        
-                    -- === TOWERCONTINUE HIỆN → ĐẾM 20 GIÂY ===
-                    elseif towerContinueVisible then
-                        isCountingDown = true
-                        towerCooldown = 20
-                        showNotification("🕒 Đếm 20 giây...")
                         
                     -- === KHÔNG CÓ GÌ → RESET ===
                     else
