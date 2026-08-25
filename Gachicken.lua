@@ -59,23 +59,19 @@ local function showNotification(text, duration)
         spawn(function()
             while #notificationQueue > 0 do
                 local notif = table.remove(notificationQueue, 1)
-                
-                -- Hiện thông báo
+
                 notificationFrame.Visible = true
                 notificationLabel.Text = notif.text
-                
-                -- Animation trượt xuống
+
                 notificationFrame.Position = UDim2.new(1, -260, 0, -50)
                 local tweenDown = TS:Create(notificationFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
                     Position = UDim2.new(1, -260, 0, 10)
                 })
                 tweenDown:Play()
                 tweenDown.Completed:Wait()
-                
-                -- Chờ hết thời gian hiển thị
+
                 wait(notif.duration)
-                
-                -- Animation trượt lên
+
                 local tweenUp = TS:Create(notificationFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
                     Position = UDim2.new(1, -260, 0, -50)
                 })
@@ -89,7 +85,6 @@ local function showNotification(text, duration)
         end)
     end
 end
-
 -- ================== MAIN GUI ==================
 local MF = Instance.new("Frame")
 MF.Size = UDim2.new(0, 380, 0, 320)
@@ -100,7 +95,6 @@ MF.Parent = SG
 C(MF, 12)
 local mainStroke = S(MF, Color3.fromRGB(255, 0, 0), 1.5)
 
--- Viền rainbow đổi màu NHANH
 local function rainbowLoop()
     while true do
         rainbowHue = (rainbowHue + 0.01) % 1
@@ -140,7 +134,6 @@ CB.Font = Enum.Font.GothamBold
 CB.Parent = TB
 C(CB, 25)
 
--- Tab buttons
 local TC = Instance.new("Frame")
 TC.Size = UDim2.new(1, 0, 0, 30)
 TC.Position = UDim2.new(0, 0, 0, 35)
@@ -460,55 +453,27 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
     if s then
         spawn(function()
-            local hasBoughtGen1 = false
-            local isUpgrading = false
-            local rebirthDetected = false
-            local rebirthTimer = 0
-            
             while feeder do
                 pcall(function()
+                    local currentTower = getCurrentTower()
                     local currentMoney = getMoney()
-                    local rebirthReady = isRebirthReadyVisible()
                     
-                    if rebirthReady and not rebirthDetected then
-                        rebirthDetected = true
-                        rebirthTimer = tick()
-                        showNotification("🔄 Rebirth Ready! Đợi 10 giây...")
-                        
-                    elseif rebirthReady and rebirthDetected then
-                        if tick() - rebirthTimer >= 10 then
-                            hasBoughtGen1 = false
-                            isUpgrading = false
-                            rebirthDetected = false
-                            showNotification("✅ Đã reset trạng thái!")
-                        end
-                        
-                    elseif not rebirthReady then
-                        rebirthDetected = false
-                    end
-                    
-                    if not rebirthReady and not rebirthDetected then
-                        if not hasBoughtGen1 then
-                            if currentMoney >= 360 then
-                                local success = pcall(function()
-                                    RS.Remotes.BuyGenerator:InvokeServer(1)
-                                end)
-                                if success then
-                                    hasBoughtGen1 = true
-                                    showNotification("✅ Mua Generator 1 thành công!")
-                                end
-                            end
-                        
-                        else
-                            if not isUpgrading then
-                                isUpgrading = true
-                                showNotification("⬆️ Bắt đầu Auto Upgrade Gen 1!")
-                            end
-                            
-                            pcall(function()
-                                RS.Remotes.UpgradeGenerator:InvokeServer(1)
+                    if currentTower == 0 then
+                        if currentMoney >= 360 then
+                            local success = pcall(function()
+                                RS.Remotes.BuyGenerator:InvokeServer(1)
                             end)
+                            if success then
+                                showNotification("✅ Mua Generator 1 thành công!")
+                            end
+                        else
+                            showNotification("💰 Chưa đủ tiền mua Gen 1: " .. currentMoney .. "/360")
                         end
+                        
+                    else
+                        pcall(function()
+                            RS.Remotes.UpgradeGenerator:InvokeServer(1)
+                        end)
                     end
                 end)
                 
