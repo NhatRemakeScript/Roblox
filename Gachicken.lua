@@ -35,13 +35,13 @@ MF.Parent = SG
 C(MF, 12)
 local mainStroke = S(MF, Color3.fromRGB(255, 0, 0), 1.5)
 
--- Viền rainbow chuyển màu liên tục (đỏ -> cam -> vàng -> xanh lá -> xanh dương -> tím -> hồng -> đỏ)
+-- Viền rainbow đổi màu NHANH (0.01 mỗi 0.01 giây)
 local function rainbowLoop()
     while true do
-        rainbowHue = (rainbowHue + 0.005) % 1  -- Tăng chậm để chuyển màu mượt
+        rainbowHue = (rainbowHue + 0.01) % 1
         local col = Color3.fromHSV(rainbowHue, 1, 1)
         mainStroke.Color = col
-        wait(0.03)
+        wait(0.01)
     end
 end
 spawn(rainbowLoop)
@@ -231,7 +231,7 @@ local function randDelay(min, max)
     return math.random(min * 100, max * 100) / 100
 end
 
--- Kiểm tra GUI có thực sự hiển thị (không dùng IsVisible)
+-- Kiểm tra GUI có thực sự hiển thị
 local function isGuiActuallyVisible(gui)
     if not gui or not gui:IsA("GuiObject") then
         return false
@@ -247,6 +247,22 @@ local function isGuiActuallyVisible(gui)
         return false
     end
     return true
+end
+
+-- Kiểm tra Rebirth Ready có hiển thị không
+local function isRebirthReadyVisible()
+    local notice = Player:WaitForChild("PlayerGui"):FindFirstChild("RebirthNotice")
+    if not notice then
+        return false
+    end
+    for _, gui in ipairs(notice:GetDescendants()) do
+        if gui:IsA("TextLabel") or gui:IsA("TextButton") then
+            if gui.Text and gui.Text:upper():find("REBIRTH READY!") and isGuiActuallyVisible(gui) then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 -- Lấy trạng thái hiển thị của RebirthNotice (cho UI)
@@ -271,6 +287,18 @@ local function getRebirthNoticeStatus()
     return visibleOnScreen and "✔" or "✖"
 end
 
+-- Lấy tiền từ leaderstats
+local function getMoney()
+    local ls = Player:FindFirstChild("leaderstats")
+    if ls then
+        local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
+        if money then
+            return tonumber(money.Value) or 0
+        end
+    end
+    return 0
+end
+
 -- Lấy giá trị Tower từ leaderstats
 local function getCurrentTower()
     local ls = Player:FindFirstChild("leaderstats")
@@ -283,7 +311,7 @@ local function getCurrentTower()
     return 0
 end
 
--- Kiểm tra TowerContinue có đang hiển thị trong PlayerGui không
+-- Kiểm tra TowerContinue
 local function hasTowerContinue()
     local playerGui = Player:WaitForChild("PlayerGui")
     local tc = playerGui:FindFirstChild("TowerContinue")
@@ -296,7 +324,7 @@ local function hasTowerContinue()
     return false
 end
 
--- Hàm di chuyển nhân vật tới vị trí
+-- Hàm di chuyển nhân vật
 local function moveToPosition(targetPos)
     local char = Player.Character
     if not char then return false end
@@ -326,33 +354,112 @@ local function moveToPosition(targetPos)
     return false
 end
 
--- ================== AUTO REBIRTH ==================
+-- ================== AUTO REBIRTH (THÔNG MINH) ==================
 CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
     reb = s
-    spawn(function()
-        while reb do
-            pcall(function()
-                RS.Remotes.Rebirth:InvokeServer()
-            end)
-            wait(randDelay(1.8, 2.5))
-        end
-    end)
+    if s then
+        spawn(function()
+            local isRebirthing = false
+            local rebirthStartTime = 0
+            
+            while reb do
+                pcall(function()
+                    local rebirthReady = isRebirthReadyVisible()
+                    
+                    if rebirthReady and not isRebirthing then
+                        isRebirthing = true
+                        rebirthStartTime = tick()
+                        print("🔄 Rebirth Ready! Gửi Rebirth trong 10 giây...")
+                    end
+                    
+                    if isRebirthing then
+                        if tick() - rebirthStartTime < 10 then
+                            pcall(function()
+                                RS.Remotes.Rebirth:InvokeServer()
+                            end)
+                            wait(randDelay(1, 3))
+                        else
+                            isRebirthing = false
+                            print("✅ Hoàn thành Rebirth!")
+                        end
+                    end
+                end)
+                
+                wait(randDelay(0.5, 1))
+            end
+        end)
+    end
 end)
 
--- ================== AUTO FEEDER ==================
+-- ================== AUTO FEEDER (THÔNG MINH) ==================
 CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
-    spawn(function()
-        local a = 1
-        while feeder do
-            pcall(function()
-                RS.Remotes.BuyGenerator:InvokeServer(a)
-                RS.Remotes.UpgradeGenerator:InvokeServer(a)
-            end)
-            a = (a == 1) and 2 or 1
-            wait(randDelay(1.8, 2.5))
-        end
-    end)
+    if s then
+        spawn(function()
+            local hasBoughtGen1 = false
+            local hasBoughtGen2 = false
+            local isUpgrading = false
+            local rebirthDetected = false
+            local rebirthTimer = 0
+            
+            while feeder do
+                pcall(function()
+                    local currentMoney = getMoney()
+                    local rebirthReady = isRebirthReadyVisible()
+                    
+                    if rebirthReady and not rebirthDetected then
+                        rebirthDetected = true
+                        rebirthTimer = tick()
+                        
+                    elseif rebirthReady and rebirthDetected then
+                        if tick() - rebirthTimer >= 10 then
+                            hasBoughtGen1 = false
+                            hasBoughtGen2 = false
+                            isUpgrading = false
+                            rebirthDetected = false
+                        end
+                        
+                    elseif not rebirthReady then
+                        rebirthDetected = false
+                    end
+                    
+                    if not rebirthReady and not rebirthDetected then
+                        if not (hasBoughtGen1 and hasBoughtGen2) then
+                            if currentMoney >= 640 and not hasBoughtGen2 then
+                                pcall(function()
+                                    RS.Remotes.BuyGenerator:InvokeServer(2)
+                                end)
+                                hasBoughtGen2 = true
+                            elseif currentMoney >= 360 and not hasBoughtGen1 then
+                                pcall(function()
+                                    RS.Remotes.BuyGenerator:InvokeServer(1)
+                                end)
+                                hasBoughtGen1 = true
+                            end
+                            
+                        else
+                            if not isUpgrading then
+                                isUpgrading = true
+                            end
+                            
+                            local a = math.random(1, 2)
+                            pcall(function()
+                                RS.Remotes.UpgradeGenerator:InvokeServer(a)
+                            end)
+                            wait(randDelay(1.5, 2.5))
+                            
+                            local b = (a == 1) and 2 or 1
+                            pcall(function()
+                                RS.Remotes.UpgradeGenerator:InvokeServer(b)
+                            end)
+                        end
+                    end
+                end)
+                
+                wait(randDelay(1, 2))
+            end
+        end)
+    end
 end)
 
 -- ================== COLLECT EGG ==================
@@ -408,14 +515,13 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
     end
 end)
 
--- ================== AUTO TOWER (GỘP CHUNG TOWER READY + TOWER CONTINUE) ==================
+-- ================== AUTO TOWER ==================
 CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     autoTower = s
     if s then
         towerCooldown = randDelay(27.5, 29.7)
         local lastTowerContinueDecline = 0
 
-        -- Vòng lặp chính: gửi TowerStart hoặc TowerElevator
         spawn(function()
             while autoTower do
                 if not pauseTowerStart then
@@ -438,7 +544,6 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
             end
         end)
 
-        -- Vòng lặp kiểm tra TowerContinue và gửi TowerContinueDecline
         spawn(function()
             while autoTower do
                 if hasTowerContinue() and (tick() - lastTowerContinueDecline > 1.0) then
@@ -451,7 +556,6 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
             end
         end)
 
-        -- Vòng lặp kiểm tra RebirthNotice và gửi TowerSurrender
         spawn(function()
             local wasRebirthVisible = false
             while autoTower do
@@ -535,7 +639,7 @@ spawn(function()
     end
 end)
 
--- ================== STATS TAB (THIẾT KẾ LẠI) ==================
+-- ================== STATS TAB ==================
 local statsFrame = Instance.new("Frame")
 statsFrame.Size = UDim2.new(1, -10, 0, 200)
 statsFrame.Position = UDim2.new(0, 5, 0, 5)
@@ -548,14 +652,13 @@ local statsTitle = Instance.new("TextLabel")
 statsTitle.Size = UDim2.new(1, -20, 0, 25)
 statsTitle.Position = UDim2.new(0, 10, 0, 10)
 statsTitle.BackgroundTransparency = 1
-statsTitle.Text = "📊 THỐNG KÊ NGƯỜI CHƠI"
+statsTitle.Text = "📊 PLAYER STATS"
 statsTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
 statsTitle.TextSize = 14
 statsTitle.Font = Enum.Font.GothamBold
 statsTitle.TextXAlignment = Enum.TextXAlignment.Center
 statsTitle.Parent = statsFrame
 
--- Tạo khung lục giác dài (hexagon stretched)
 local function createHexStat(parent, position, emoji, label, value)
     local hexFrame = Instance.new("Frame")
     hexFrame.Size = UDim2.new(1, -20, 0, 40)
@@ -565,7 +668,6 @@ local function createHexStat(parent, position, emoji, label, value)
     C(hexFrame, 10)
     S(hexFrame, Color3.fromRGB(255, 215, 0), 1)
 
-    -- Emoji (bên trái)
     local emojiLabel = Instance.new("TextLabel")
     emojiLabel.Size = UDim2.new(0, 35, 1, 0)
     emojiLabel.Position = UDim2.new(0, 8, 0, 0)
@@ -576,7 +678,6 @@ local function createHexStat(parent, position, emoji, label, value)
     emojiLabel.TextYAlignment = Enum.TextYAlignment.Center
     emojiLabel.Parent = hexFrame
 
-    -- Label (tên chỉ số)
     local labelText = Instance.new("TextLabel")
     labelText.Size = UDim2.new(0, 110, 1, 0)
     labelText.Position = UDim2.new(0, 45, 0, 0)
@@ -589,7 +690,6 @@ local function createHexStat(parent, position, emoji, label, value)
     labelText.TextYAlignment = Enum.TextYAlignment.Center
     labelText.Parent = hexFrame
 
-    -- Value (giá trị)
     local valueText = Instance.new("TextLabel")
     valueText.Size = UDim2.new(1, -165, 1, 0)
     valueText.Position = UDim2.new(0, 155, 0, 0)
@@ -605,7 +705,6 @@ local function createHexStat(parent, position, emoji, label, value)
     return valueText
 end
 
--- Tạo các khung chỉ số
 local cornValue, towerValue, moneyValue, levelValue
 
 local function createAllStats()
@@ -617,7 +716,6 @@ end
 
 createAllStats()
 
--- Hàm cập nhật Stats (sử dụng đúng biến của bạn)
 local function updateStats()
     local ls = Player:FindFirstChild("leaderstats")
     if not ls then
@@ -628,13 +726,11 @@ local function updateStats()
         return
     end
 
-    -- Sử dụng đúng các biến bạn khai báo
     local corn = ls:FindFirstChild("Corn/s") or ls:FindFirstChild("Corn Farm")
     local tower = ls:FindFirstChild("Tower")
     local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
     local level = ls:FindFirstChild("Level")
 
-    -- Cập nhật giá trị
     if corn then
         cornValue.Text = tostring(corn.Value) .. "/s"
     else
@@ -666,6 +762,7 @@ spawn(function()
         wait(1)
     end
 end)
+
 -- ================== CANVAS + TAB SWITCH ==================
 local function calcCanvas()
     local h = 0
@@ -720,8 +817,8 @@ bubble.Size = UDim2.new(0, 50, 0, 50)
 bubble.Position = UDim2.new(0, 15, 0.5, -25)
 bubble.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 bubble.Image = "rbxassetid://11566993729"
-bubble.ImageColor3 = Color3.fromRGB(0, 200, 255)
-bubble.ImageTransparency = 0.3
+bubble.ImageColor3 = Color3.fromRGB(255, 255, 255)
+bubble.ImageTransparency = 0
 bubble.Parent = SG
 C(bubble, 50)
 S(bubble, Color3.fromRGB(0, 200, 255), 2)
@@ -729,7 +826,7 @@ S(bubble, Color3.fromRGB(0, 200, 255), 2)
 local bl = Instance.new("TextLabel")
 bl.Size = UDim2.new(1, 0, 1, 0)
 bl.BackgroundTransparency = 1
-bl.Text = " "
+bl.Text = ""
 bl.TextColor3 = Color3.fromRGB(255, 255, 255)
 bl.TextSize = 20
 bl.Font = Enum.Font.GothamBold
@@ -741,7 +838,6 @@ bubble.MouseButton1Click:Connect(function()
     open = not open
     MF.Visible = open
 end)
-
 -- Kéo thả menu chính
 local drag = {active = false, offset = Vector2.new(0, 0)}
 TB.InputBegan:Connect(function(i)
@@ -762,7 +858,6 @@ UIS.InputEnded:Connect(function(i)
         drag.active = false
     end
 end)
-
 -- Kéo thả bubble
 local bdrag = {active = false, offset = Vector2.new(0, 0)}
 bubble.InputBegan:Connect(function(i)
@@ -783,7 +878,6 @@ UIS.InputEnded:Connect(function(i)
         bdrag.active = false
     end
 end)
-
 -- Nút thu nhỏ / phóng to menu
 local min = false
 CB.MouseButton1Click:Connect(function()
