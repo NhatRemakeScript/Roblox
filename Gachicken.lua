@@ -533,7 +533,6 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
         local isCountingDown = false
         local hasSentFirstTime = false
         local towerCooldown = 0
-        local rebirthCooldown = 0
         local wasRebirthVisible = false
 
         -- Vòng lặp chính
@@ -558,81 +557,57 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                         end)
                         showNotification("✅ Đã gửi Tower lần đầu!")
                         
-                    -- === SAU REBIRTH READY 10 GIÂY → GỬI TOWERSTART ===
-                    elseif rebirthReadyVisible then
-                        -- Phát hiện Rebirth Ready
-                        if not wasRebirthVisible then
-                            wasRebirthVisible = true
-                            rebirthCooldown = 10  -- Đếm 10 giây
-                            showNotification("🔄 Rebirth Ready! Đếm 10 giây...")
-                            
-                            -- Đầu hàng tháp
-                            pcall(function()
-                                RS.Remotes.TowerSurrender:InvokeServer()
-                            end)
+                    -- === PHÁT HIỆN REBIRTH READY ===
+                    elseif rebirthReadyVisible and not wasRebirthVisible then
+                        wasRebirthVisible = true
+                        
+                        -- Set thời gian thành 10 giây
+                        isCountingDown = true
+                        towerCooldown = 10
+                        
+                        -- Đầu hàng tháp
+                        pcall(function()
+                            RS.Remotes.TowerSurrender:InvokeServer()
+                        end)
+                        showNotification("🔄 Rebirth Ready! Đếm 10 giây...")
+                        
+                    -- === ĐANG ĐẾM THỜI GIAN ===
+                    elseif isCountingDown then
+                        -- Đếm ngược
+                        if towerCooldown > 0 then
+                            towerCooldown = towerCooldown - 0.1
                         end
                         
-                        -- Đếm ngược 10 giây
-                        if rebirthCooldown > 0 then
-                            rebirthCooldown = rebirthCooldown - 0.1
-                        end
-                        
-                        -- Sau 10 giây → gửi TowerStart
-                        if rebirthCooldown <= 0 then
+                        -- Khi đếm xong → gửi
+                        if towerCooldown <= 0 then
+                            local currentTower = getCurrentTower()
                             pcall(function()
-                                RS.Remotes.TowerStart:InvokeServer()
+                                if currentTower > 0 then
+                                    RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
+                                    wait(randDelay(1, 2))
+                                    RS.Remotes.TowerStart:InvokeServer()
+                                else
+                                    RS.Remotes.TowerStart:InvokeServer()
+                                end
                             end)
-                            showNotification("✅ Đã gửi Tower Start sau Rebirth!")
                             
-                            -- Reset trạng thái
+                            isCountingDown = false
+                            towerCooldown = 0
                             wasRebirthVisible = false
-                            rebirthCooldown = 0
-                            hasSentFirstTime = true  -- Đã gửi rồi
-                            isCountingDown = false
-                            towerCooldown = 0
+                            showNotification("✅ Đã gửi Tower Start!")
                         end
                         
-                    -- === SAU ĐÓ CHỈ GỬI KHI TOWERCONTINUE HIỆN ===
+                    -- === TOWERCONTINUE HIỆN → ĐẾM 20 GIÂY ===
+                    elseif towerContinueVisible then
+                        isCountingDown = true
+                        towerCooldown = 20
+                        showNotification("🕒 Đếm 20 giây...")
+                        
+                    -- === KHÔNG CÓ GÌ → RESET ===
                     else
-                        -- Reset trạng thái rebirth
+                        isCountingDown = false
+                        towerCooldown = 0
                         wasRebirthVisible = false
-                        rebirthCooldown = 0
-                        
-                        if towerContinueVisible then
-                            -- Bắt đầu đếm 20 giây
-                            if not isCountingDown then
-                                isCountingDown = true
-                                towerCooldown = 20  -- Đếm 20 giây
-                                showNotification("🕒 Đếm 20 giây...")
-                            end
-                            
-                            -- Đếm ngược
-                            if towerCooldown > 0 then
-                                towerCooldown = towerCooldown - 0.1
-                            end
-                            
-                            -- Khi đếm xong → gửi
-                            if towerCooldown <= 0 then
-                                local currentTower = getCurrentTower()
-                                pcall(function()
-                                    if currentTower > 0 then
-                                        RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
-                                        wait(randDelay(1, 2))
-                                        RS.Remotes.TowerStart:InvokeServer()
-                                    else
-                                        RS.Remotes.TowerStart:InvokeServer()
-                                    end
-                                end)
-                                
-                                isCountingDown = false
-                                towerCooldown = 0
-                                showNotification("✅ Đã gửi Tower Start!")
-                            end
-                        else
-                            -- TowerContinue không hiện → reset
-                            isCountingDown = false
-                            towerCooldown = 0
-                        end
                     end
                 end
                 wait(0.1)
