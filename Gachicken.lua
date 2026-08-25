@@ -25,6 +25,71 @@ local function S(o, c, t)
     s.Parent = o
 end
 
+-- ================== NOTIFICATION SYSTEM ==================
+local notificationFrame = Instance.new("Frame")
+notificationFrame.Size = UDim2.new(0, 250, 0, 40)
+notificationFrame.Position = UDim2.new(1, -260, 0, -50)  -- Bắt đầu từ trên màn hình
+notificationFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+notificationFrame.Parent = SG
+C(notificationFrame, 8)
+S(notificationFrame, Color3.fromRGB(0, 200, 255), 1.5)
+
+local notificationLabel = Instance.new("TextLabel")
+notificationLabel.Size = UDim2.new(1, -20, 1, 0)
+notificationLabel.Position = UDim2.new(0, 10, 0, 0)
+notificationLabel.BackgroundTransparency = 1
+notificationLabel.Text = ""
+notificationLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+notificationLabel.TextSize = 13
+notificationLabel.Font = Enum.Font.GothamMedium
+notificationLabel.TextXAlignment = Enum.TextXAlignment.Left
+notificationLabel.TextYAlignment = Enum.TextYAlignment.Center
+notificationLabel.Parent = notificationFrame
+
+notificationFrame.Visible = false
+
+local notificationQueue = {}  -- Hàng đợi thông báo
+local isShowingNotification = false
+
+local function showNotification(text, duration)
+    table.insert(notificationQueue, {text = text, duration = duration or 3})
+    
+    if not isShowingNotification then
+        isShowingNotification = true
+        spawn(function()
+            while #notificationQueue > 0 do
+                local notif = table.remove(notificationQueue, 1)
+                
+                -- Hiện thông báo
+                notificationFrame.Visible = true
+                notificationLabel.Text = notif.text
+                
+                -- Animation trượt xuống
+                notificationFrame.Position = UDim2.new(1, -260, 0, -50)
+                local tweenDown = TS:Create(notificationFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+                    Position = UDim2.new(1, -260, 0, 10)
+                })
+                tweenDown:Play()
+                tweenDown.Completed:Wait()
+                
+                -- Chờ hết thời gian hiển thị
+                wait(notif.duration)
+                
+                -- Animation trượt lên
+                local tweenUp = TS:Create(notificationFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+                    Position = UDim2.new(1, -260, 0, -50)
+                })
+                tweenUp:Play()
+                tweenUp.Completed:Wait()
+                
+                notificationFrame.Visible = false
+                wait(0.2)  -- Nghỉ ngắn giữa các thông báo
+            end
+            isShowingNotification = false
+        end)
+    end
+end
+
 -- ================== MAIN GUI ==================
 local MF = Instance.new("Frame")
 MF.Size = UDim2.new(0, 380, 0, 320)
@@ -35,7 +100,7 @@ MF.Parent = SG
 C(MF, 12)
 local mainStroke = S(MF, Color3.fromRGB(255, 0, 0), 1.5)
 
--- Viền rainbow đổi màu NHANH (0.01 mỗi 0.01 giây)
+-- Viền rainbow đổi màu NHANH
 local function rainbowLoop()
     while true do
         rainbowHue = (rainbowHue + 0.01) % 1
@@ -56,7 +121,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡ GACF 1.3.1"
+TT.Text = "⚡ GACF 1.4.0"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -354,7 +419,7 @@ local function moveToPosition(targetPos)
     return false
 end
 
--- ================== AUTO REBIRTH (THÔNG MINH) ==================
+-- ================== AUTO REBIRTH ==================
 CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
     reb = s
     if s then
@@ -369,7 +434,7 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
                     if rebirthReady and not isRebirthing then
                         isRebirthing = true
                         rebirthStartTime = tick()
-                        print("🔄 Rebirth Ready! Gửi Rebirth trong 10 giây...")
+                        showNotification("🔄 Rebirth Ready! Gửi Rebirth...")
                     end
                     
                     if isRebirthing then
@@ -380,7 +445,7 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
                             wait(randDelay(1, 3))
                         else
                             isRebirthing = false
-                            print("✅ Hoàn thành Rebirth!")
+                            showNotification("✅ Hoàn thành Rebirth!")
                         end
                     end
                 end)
@@ -391,7 +456,7 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
     end
 end)
 
--- ================== AUTO FEEDER (THÔNG MINH) ==================
+-- ================== AUTO FEEDER ==================
 CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
     if s then
@@ -410,6 +475,7 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                     if rebirthReady and not rebirthDetected then
                         rebirthDetected = true
                         rebirthTimer = tick()
+                        showNotification("🔄 Rebirth Ready! Đợi 10 giây...")
                         
                     elseif rebirthReady and rebirthDetected then
                         if tick() - rebirthTimer >= 10 then
@@ -417,6 +483,7 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                             hasBoughtGen2 = false
                             isUpgrading = false
                             rebirthDetected = false
+                            showNotification("✅ Đã reset trạng thái!")
                         end
                         
                     elseif not rebirthReady then
@@ -430,16 +497,19 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                                     RS.Remotes.BuyGenerator:InvokeServer(2)
                                 end)
                                 hasBoughtGen2 = true
+                                showNotification("✅ Mua Generator 2!")
                             elseif currentMoney >= 360 and not hasBoughtGen1 then
                                 pcall(function()
                                     RS.Remotes.BuyGenerator:InvokeServer(1)
                                 end)
                                 hasBoughtGen1 = true
+                                showNotification("✅ Mua Generator 1!")
                             end
                             
                         else
                             if not isUpgrading then
                                 isUpgrading = true
+                                showNotification("⬆️ Bắt đầu Auto Upgrade!")
                             end
                             
                             local a = math.random(1, 2)
@@ -578,6 +648,7 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                     pcall(function()
                         RS.Remotes.TowerSurrender:InvokeServer()
                     end)
+                    showNotification("🏳️ Đã đầu hàng tháp!")
                     wait(10)
                     pauseTowerStart = false
                 elseif not isVisibleNow then
@@ -838,6 +909,7 @@ bubble.MouseButton1Click:Connect(function()
     open = not open
     MF.Visible = open
 end)
+
 -- Kéo thả menu chính
 local drag = {active = false, offset = Vector2.new(0, 0)}
 TB.InputBegan:Connect(function(i)
@@ -858,6 +930,7 @@ UIS.InputEnded:Connect(function(i)
         drag.active = false
     end
 end)
+
 -- Kéo thả bubble
 local bdrag = {active = false, offset = Vector2.new(0, 0)}
 bubble.InputBegan:Connect(function(i)
@@ -878,6 +951,7 @@ UIS.InputEnded:Connect(function(i)
         bdrag.active = false
     end
 end)
+
 -- Nút thu nhỏ / phóng to menu
 local min = false
 CB.MouseButton1Click:Connect(function()
