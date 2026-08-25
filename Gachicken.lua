@@ -1,20 +1,7 @@
 -- ============================================
--- LOAD VÀ FIX RAYFIELD
+-- LOAD RAYFIELD (DÙNG SOURCE CỦA BẠN)
 -- ============================================
-local RayfieldSource = game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source')
-
--- Fix lỗi Shadow
-local FixedSource = RayfieldSource:gsub('Shadow = Instance%.new%( "ImageLabel" %)', '-- Shadow = Instance.new("ImageLabel")')
-FixedSource = FixedSource:gsub('Shadow%.Parent = frame', '-- Shadow.Parent = frame')
-FixedSource = FixedSource:gsub('Shadow%.Image = "rbxassetid://1316048114"', '-- Shadow.Image = "rbxassetid://1316048114"')
-FixedSource = FixedSource:gsub('Shadow%.ImageTransparency = 1', '-- Shadow.ImageTransparency = 1')
-FixedSource = FixedSource:gsub('Shadow%.ZIndex = 0', '-- Shadow.ZIndex = 0')
-FixedSource = FixedSource:gsub('Shadow%.Size = UDim2%.new%(1, 10, 1, 10%)', '-- Shadow.Size = UDim2.new(1, 10, 1, 10)')
-FixedSource = FixedSource:gsub('Shadow%.Position = UDim2%.new%(0.5, 0, 0.5, 0%)', '-- Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)')
-FixedSource = FixedSource:gsub('Shadow%.AnchorPoint = Vector2%.new%(0.5, 0.5%)', '-- Shadow.AnchorPoint = Vector2.new(0.5, 0.5)')
-FixedSource = FixedSource:gsub('local Shadow = Instance%.new%( "ImageLabel" %)', '-- local Shadow = Instance.new("ImageLabel")')
-
-local Rayfield = loadstring(FixedSource)()
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source'))()
 
 -- ============================================
 -- CODE AUTO FARM
@@ -148,6 +135,158 @@ local function Notify(title, content, duration)
     end
 end
 
+local function AutoRebirthLoop()
+    while Settings.AutoRebirth do
+        task.wait(RandDelay(0.5, 1.5))
+        pcall(function()
+            if IsRebirthReady() and not Status.IsRebirthing then
+                Status.IsRebirthing = true
+                Status.RebirthStartTime = tick()
+                Notify("Auto Rebirth", "Rebirth Ready! Dang thuc hien...")
+            end
+            
+            if Status.IsRebirthing then
+                if tick() - Status.RebirthStartTime < 8 then
+                    pcall(function()
+                        if RS and RS.Remotes and RS.Remotes.Rebirth then
+                            RS.Remotes.Rebirth:InvokeServer()
+                        end
+                    end)
+                    task.wait(RandDelay(1, 2))
+                else
+                    Status.IsRebirthing = false
+                    Notify("Auto Rebirth", "Hoan thanh Rebirth!")
+                end
+            end
+        end)
+    end
+    Status.IsRebirthing = false
+end
+
+local function AutoFeederLoop()
+    while Settings.AutoFeeder do
+        task.wait(RandDelay(2, 4))
+        pcall(function()
+            local currentMoney = GetMoney()
+            local currentTower = GetCurrentTower()
+            
+            if currentTower == 0 then
+                if currentMoney >= 360 then
+                    pcall(function()
+                        if RS and RS.Remotes and RS.Remotes.BuyGenerator then
+                            RS.Remotes.BuyGenerator:InvokeServer(1)
+                            Notify("Auto Feeder", "Da mua Generator 1!")
+                        end
+                    end)
+                end
+            else
+                pcall(function()
+                    if RS and RS.Remotes and RS.Remotes.UpgradeGenerator then
+                        RS.Remotes.UpgradeGenerator:InvokeServer(1)
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+local function CollectEggLoop()
+    while Settings.CollectEgg do
+        task.wait(1.5)
+        pcall(function()
+            Status.IncubatorTimer = Status.IncubatorTimer + 1
+            if Status.IncubatorTimer >= 30 then
+                pcall(function()
+                    if RS and RS.Remotes and RS.Remotes.IncubatorClaim then
+                        RS.Remotes.IncubatorClaim:InvokeServer()
+                        Status.IncubatorTimer = 0
+                    end
+                end)
+            end
+            
+            local char = Player.Character
+            if not char then return end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+            
+            local egg = nil
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("Model") and v.Name:find("NestEgg") then
+                    local ow = v:FindFirstChild("owner") or v:FindFirstChild("Owner") or v:FindFirstChild("OwnerName")
+                    if ow and ow.Value == Player.Name then
+                        egg = v
+                        break
+                    end
+                end
+            end
+            
+            if egg then
+                local pos = egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChild("PrimaryPart") or egg:FindFirstChildWhichIsA("BasePart")
+                if pos then
+                    local targetPos = pos.Position + Vector3.new(0, 2, 0)
+                    if (root.Position - targetPos).Magnitude > 5 then
+                        MoveToPosition(targetPos)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+local function AutoTowerLoop()
+    while Settings.AutoTower do
+        task.wait(0.1)
+        if Status.TowerCooldown <= 0 then
+            pcall(function()
+                local currentTower = GetCurrentTower()
+                if RS and RS.Remotes then
+                    if currentTower > 0 and RS.Remotes.TowerElevator then
+                        RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
+                        task.wait(RandDelay(1, 2))
+                    end
+                    if RS.Remotes.TowerStart then
+                        RS.Remotes.TowerStart:InvokeServer()
+                    end
+                end
+                Status.TowerCooldown = RandDelay(27.3, 29.5)
+            end)
+        else
+            Status.TowerCooldown = Status.TowerCooldown - 0.1
+        end
+    end
+end
+
+spawn(function()
+    while true do
+        if Settings.AutoRebirth then AutoRebirthLoop() end
+        task.wait(0.5)
+    end
+end)
+
+spawn(function()
+    while true do
+        if Settings.AutoFeeder then AutoFeederLoop() end
+        task.wait(0.5)
+    end
+end)
+
+spawn(function()
+    while true do
+        if Settings.CollectEgg then CollectEggLoop() end
+        task.wait(0.5)
+    end
+end)
+
+spawn(function()
+    while true do
+        if Settings.AutoTower then AutoTowerLoop() end
+        task.wait(0.5)
+    end
+end)
+
+-- ============================================
+-- TẠO WINDOW VỚI RAYFIELD
+-- ============================================
 local MainWindow = Rayfield:CreateWindow({
     Name = "DucNhat 2.0.5",
     LoadingTitle = "Auto Farm Hub",
@@ -158,169 +297,62 @@ local MainWindow = Rayfield:CreateWindow({
     }
 })
 
+-- ============================================
+-- TAB: MAIN
+-- ============================================
 local MainTab = MainWindow:CreateTab("Main")
 
-MainTab:CreateButton({
+MainTab:CreateToggle({
     Name = "Auto Rebirth",
-    Callback = function()
-        Settings.AutoRebirth = not Settings.AutoRebirth
-        if Settings.AutoRebirth then
+    CurrentValue = false,
+    Flag = "AutoRebirth",
+    Callback = function(Value)
+        Settings.AutoRebirth = Value
+        if Value then
             Notify("Auto Rebirth", "Da bat Auto Rebirth")
-            spawn(function()
-                while Settings.AutoRebirth do
-                    task.wait(RandDelay(0.5, 1.5))
-                    pcall(function()
-                        if IsRebirthReady() and not Status.IsRebirthing then
-                            Status.IsRebirthing = true
-                            Status.RebirthStartTime = tick()
-                            Notify("Auto Rebirth", "Rebirth Ready! Dang thuc hien...")
-                        end
-                        
-                        if Status.IsRebirthing then
-                            if tick() - Status.RebirthStartTime < 8 then
-                                pcall(function()
-                                    if RS and RS.Remotes and RS.Remotes.Rebirth then
-                                        RS.Remotes.Rebirth:InvokeServer()
-                                    end
-                                end)
-                                task.wait(RandDelay(1, 2))
-                            else
-                                Status.IsRebirthing = false
-                                Notify("Auto Rebirth", "Hoan thanh Rebirth!")
-                            end
-                        end
-                    end)
-                end
-                Status.IsRebirthing = false
-            end)
         else
             Notify("Auto Rebirth", "Da tat Auto Rebirth")
-            Status.IsRebirthing = false
         end
     end
 })
 
-MainTab:CreateButton({
+MainTab:CreateToggle({
     Name = "Auto Feeder",
-    Callback = function()
-        Settings.AutoFeeder = not Settings.AutoFeeder
-        if Settings.AutoFeeder then
+    CurrentValue = false,
+    Flag = "AutoFeeder",
+    Callback = function(Value)
+        Settings.AutoFeeder = Value
+        if Value then
             Notify("Auto Feeder", "Da bat Auto Feeder")
-            spawn(function()
-                while Settings.AutoFeeder do
-                    task.wait(RandDelay(2, 4))
-                    pcall(function()
-                        local currentMoney = GetMoney()
-                        local currentTower = GetCurrentTower()
-                        
-                        if currentTower == 0 then
-                            if currentMoney >= 360 then
-                                pcall(function()
-                                    if RS and RS.Remotes and RS.Remotes.BuyGenerator then
-                                        RS.Remotes.BuyGenerator:InvokeServer(1)
-                                        Notify("Auto Feeder", "Da mua Generator 1!")
-                                    end
-                                end)
-                            end
-                        else
-                            pcall(function()
-                                if RS and RS.Remotes and RS.Remotes.UpgradeGenerator then
-                                    RS.Remotes.UpgradeGenerator:InvokeServer(1)
-                                end
-                            end)
-                        end
-                    end)
-                end
-            end)
         else
             Notify("Auto Feeder", "Da tat Auto Feeder")
         end
     end
 })
 
-MainTab:CreateButton({
+MainTab:CreateToggle({
     Name = "Collect Egg",
-    Callback = function()
-        Settings.CollectEgg = not Settings.CollectEgg
-        if Settings.CollectEgg then
+    CurrentValue = false,
+    Flag = "CollectEgg",
+    Callback = function(Value)
+        Settings.CollectEgg = Value
+        if Value then
             Notify("Collect Egg", "Da bat Collect Egg")
-            spawn(function()
-                while Settings.CollectEgg do
-                    task.wait(1.5)
-                    pcall(function()
-                        Status.IncubatorTimer = Status.IncubatorTimer + 1
-                        if Status.IncubatorTimer >= 30 then
-                            pcall(function()
-                                if RS and RS.Remotes and RS.Remotes.IncubatorClaim then
-                                    RS.Remotes.IncubatorClaim:InvokeServer()
-                                    Status.IncubatorTimer = 0
-                                end
-                            end)
-                        end
-                        
-                        local char = Player.Character
-                        if not char then return end
-                        local root = char:FindFirstChild("HumanoidRootPart")
-                        if not root then return end
-                        
-                        local egg = nil
-                        for _, v in pairs(workspace:GetDescendants()) do
-                            if v:IsA("Model") and v.Name:find("NestEgg") then
-                                local ow = v:FindFirstChild("owner") or v:FindFirstChild("Owner") or v:FindFirstChild("OwnerName")
-                                if ow and ow.Value == Player.Name then
-                                    egg = v
-                                    break
-                                end
-                            end
-                        end
-                        
-                        if egg then
-                            local pos = egg:FindFirstChild("HumanoidRootPart") or egg:FindFirstChild("PrimaryPart") or egg:FindFirstChildWhichIsA("BasePart")
-                            if pos then
-                                local targetPos = pos.Position + Vector3.new(0, 2, 0)
-                                if (root.Position - targetPos).Magnitude > 5 then
-                                    MoveToPosition(targetPos)
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
         else
             Notify("Collect Egg", "Da tat Collect Egg")
         end
     end
 })
 
-MainTab:CreateButton({
+MainTab:CreateToggle({
     Name = "Auto Tower",
-    Callback = function()
-        Settings.AutoTower = not Settings.AutoTower
-        if Settings.AutoTower then
+    CurrentValue = false,
+    Flag = "AutoTower",
+    Callback = function(Value)
+        Settings.AutoTower = Value
+        if Value then
             Status.TowerCooldown = RandDelay(27.3, 29.5)
             Notify("Auto Tower", "Da bat Auto Tower")
-            spawn(function()
-                while Settings.AutoTower do
-                    task.wait(0.1)
-                    if Status.TowerCooldown <= 0 then
-                        pcall(function()
-                            local currentTower = GetCurrentTower()
-                            if RS and RS.Remotes then
-                                if currentTower > 0 and RS.Remotes.TowerElevator then
-                                    RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
-                                    task.wait(RandDelay(1, 2))
-                                end
-                                if RS.Remotes.TowerStart then
-                                    RS.Remotes.TowerStart:InvokeServer()
-                                end
-                            end
-                            Status.TowerCooldown = RandDelay(27.3, 29.5)
-                        end)
-                    else
-                        Status.TowerCooldown = Status.TowerCooldown - 0.1
-                    end
-                end
-            end)
         else
             Status.TowerCooldown = 0
             Notify("Auto Tower", "Da tat Auto Tower")
@@ -328,6 +360,9 @@ MainTab:CreateButton({
     end
 })
 
+-- ============================================
+-- TAB: STATS
+-- ============================================
 local StatsTab = MainWindow:CreateTab("Stats")
 
 local MoneyLabel = StatsTab:CreateLabel("Money: 0")
@@ -336,15 +371,18 @@ local TowerLabel = StatsTab:CreateLabel("Tower: 0")
 local LevelLabel = StatsTab:CreateLabel("Level: 0")
 local StatusLabel = StatsTab:CreateLabel("Status: Idle")
 
+-- ============================================
+-- TAB: SETTINGS
+-- ============================================
 local SettingsTab = MainWindow:CreateTab("Settings")
 
 SettingsTab:CreateDropdown({
     Name = "Theme",
-    Options = {"Default", "Light"},
+    Options = {"Default", "Ocean", "AmberGlow", "Light", "Amethyst", "Green", "Bloom", "DarkBlue", "Serenity"},
     CurrentOption = "Default",
     Flag = "Theme",
     Callback = function(Option)
-        Rayfield:ChangeTheme(Option)
+        MainWindow.ModifyTheme(Option)
         Notify("Theme", "Da chuyen sang theme: " .. Option)
     end
 })
@@ -363,6 +401,9 @@ SettingsTab:CreateButton({
     end
 })
 
+-- ============================================
+-- UPDATE STATS
+-- ============================================
 spawn(function()
     local statusText = "Idle"
     while true do
@@ -394,6 +435,9 @@ spawn(function()
     end
 end)
 
+-- ============================================
+-- TAB: INFO
+-- ============================================
 local InfoTab = MainWindow:CreateTab("Info")
 
 InfoTab:CreateParagraph({
