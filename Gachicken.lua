@@ -28,7 +28,7 @@ end
 -- ================== NOTIFICATION SYSTEM ==================
 local notificationFrame = Instance.new("Frame")
 notificationFrame.Size = UDim2.new(0, 250, 0, 40)
-notificationFrame.Position = UDim2.new(1, -260, 0, -50)  -- Bắt đầu từ trên màn hình
+notificationFrame.Position = UDim2.new(1, -260, 0, -50)
 notificationFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 notificationFrame.Parent = SG
 C(notificationFrame, 8)
@@ -48,7 +48,7 @@ notificationLabel.Parent = notificationFrame
 
 notificationFrame.Visible = false
 
-local notificationQueue = {}  -- Hàng đợi thông báo
+local notificationQueue = {}
 local isShowingNotification = false
 
 local function showNotification(text, duration)
@@ -79,12 +79,13 @@ local function showNotification(text, duration)
                 tweenUp.Completed:Wait()
                 
                 notificationFrame.Visible = false
-                wait(0.2)  -- Nghỉ ngắn giữa các thông báo
+                wait(0.2)
             end
             isShowingNotification = false
         end)
     end
 end
+
 -- ================== MAIN GUI ==================
 local MF = Instance.new("Frame")
 MF.Size = UDim2.new(0, 380, 0, 320)
@@ -289,7 +290,6 @@ local function randDelay(min, max)
     return math.random(min * 100, max * 100) / 100
 end
 
--- Kiểm tra GUI có thực sự hiển thị
 local function isGuiActuallyVisible(gui)
     if not gui or not gui:IsA("GuiObject") then
         return false
@@ -307,7 +307,6 @@ local function isGuiActuallyVisible(gui)
     return true
 end
 
--- Kiểm tra Rebirth Ready có hiển thị không
 local function isRebirthReadyVisible()
     local notice = Player:WaitForChild("PlayerGui"):FindFirstChild("RebirthNotice")
     if not notice then
@@ -323,7 +322,6 @@ local function isRebirthReadyVisible()
     return false
 end
 
--- Lấy trạng thái hiển thị của RebirthNotice (cho UI)
 local function getRebirthNoticeStatus()
     local notice = Player:WaitForChild("PlayerGui"):FindFirstChild("RebirthNotice")
     if not notice then
@@ -345,7 +343,6 @@ local function getRebirthNoticeStatus()
     return visibleOnScreen and "✔" or "✖"
 end
 
--- Lấy tiền từ leaderstats
 local function getMoney()
     local ls = Player:FindFirstChild("leaderstats")
     if ls then
@@ -357,7 +354,6 @@ local function getMoney()
     return 0
 end
 
--- Lấy giá trị Tower từ leaderstats
 local function getCurrentTower()
     local ls = Player:FindFirstChild("leaderstats")
     if ls then
@@ -369,7 +365,6 @@ local function getCurrentTower()
     return 0
 end
 
--- Kiểm tra TowerContinue
 local function hasTowerContinue()
     local playerGui = Player:WaitForChild("PlayerGui")
     local tc = playerGui:FindFirstChild("TowerContinue")
@@ -382,7 +377,6 @@ local function hasTowerContinue()
     return false
 end
 
--- Hàm di chuyển nhân vật
 local function moveToPosition(targetPos)
     local char = Player.Character
     if not char then return false end
@@ -449,6 +443,7 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
     end
 end)
 
+-- ================== AUTO FEEDER (FIX LỖI) ==================
 CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
     if s then
@@ -459,20 +454,15 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                     local currentMoney = getMoney()
                     
                     if currentTower == 0 then
+                        -- Tower = 0 → Mua Gen 1
                         if currentMoney >= 360 then
-                            local success = pcall(function()
+                            pcall(function()
                                 RS.Remotes.BuyGenerator:InvokeServer(1)
                             end)
-                            if success then
-                                showNotification("✅ Mua Generator 1 thành công!")
-                            end
-                        else
-                            pcall(function()
-                                RS.Remotes.TowerStart:InvokeServer()
-
+                            showNotification("✅ Mua Generator 1 thành công!")
                         end
-                        
                     else
+                        -- Tower > 0 → Upgrade Gen 1
                         pcall(function()
                             RS.Remotes.UpgradeGenerator:InvokeServer(1)
                         end)
@@ -538,12 +528,13 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
     end
 end)
 
+-- ================== AUTO TOWER ==================
 CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     autoTower = s
     if s then
-        towerCooldown = 0  -- Không đếm ngay từ đầu
+        towerCooldown = 0
         local lastTowerContinueDecline = 0
-        local isCountingDown = false  -- Trạng thái đang đếm thời gian
+        local isCountingDown = false
 
         spawn(function()
             while autoTower do
@@ -551,19 +542,16 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                     local towerContinueVisible = hasTowerContinue()
                     
                     if towerContinueVisible then
-                        -- Bắt đầu đếm thời gian khi TowerContinue hiện
                         if not isCountingDown then
                             isCountingDown = true
                             towerCooldown = randDelay(27.5, 29.7)
                             showNotification("🕒 Bắt đầu đếm thời gian Tower!")
                         end
                         
-                        -- Đếm ngược
                         if towerCooldown > 0 then
                             towerCooldown = towerCooldown - 0.1
                         end
                         
-                        -- Khi đếm xong → gửi TowerStart/Elevator
                         if towerCooldown <= 0 then
                             local currentTower = getCurrentTower()
                             pcall(function()
@@ -576,13 +564,11 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                                 end
                             end)
                             
-                            -- Reset đếm thời gian
                             isCountingDown = false
                             towerCooldown = 0
                             showNotification("✅ Đã gửi Tower Start!")
                         end
                     else
-                        -- TowerContinue không hiện → reset
                         isCountingDown = false
                         towerCooldown = 0
                     end
@@ -642,6 +628,7 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     end
 end)
 
+-- ================== TOWER INFO FRAME ==================
 local towerInfoFrame = Instance.new("Frame")
 towerInfoFrame.Size = UDim2.new(1, 0, 0, 50)
 towerInfoFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
@@ -686,9 +673,9 @@ spawn(function()
     end
 end)
 
--- ================== STATS TAB (MỞ RỘNG ĐẦY KHUNG) ==================
+-- ================== STATS TAB ==================
 local statsFrame = Instance.new("Frame")
-statsFrame.Size = UDim2.new(1, 0, 1, 0)  -- Chiếm toàn bộ khung
+statsFrame.Size = UDim2.new(1, 0, 1, 0)
 statsFrame.Position = UDim2.new(0, 0, 0, 0)
 statsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 statsFrame.Parent = miscTab
@@ -708,7 +695,7 @@ statsTitle.Parent = statsFrame
 
 local function createHexStat(parent, position, emoji, label, value)
     local hexFrame = Instance.new("Frame")
-    hexFrame.Size = UDim2.new(1, -20, 0, 45)  -- Chiều cao tăng lên 45
+    hexFrame.Size = UDim2.new(1, -20, 0, 45)
     hexFrame.Position = position
     hexFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
     hexFrame.Parent = parent
@@ -809,6 +796,7 @@ spawn(function()
         wait(1)
     end
 end)
+
 -- ================== CANVAS + TAB SWITCH ==================
 local function calcCanvas()
     local h = 0
@@ -856,24 +844,24 @@ mainTab.ChildAdded:Connect(onToggleAdded)
 miscTab.ChildAdded:Connect(onToggleAdded)
 
 switchTab("Main")
--- ================== BUBBLE ICON (FIX) ==================
+
+-- ================== BUBBLE ICON ==================
 local bubble = Instance.new("ImageButton")
 bubble.Size = UDim2.new(0, 50, 0, 50)
 bubble.Position = UDim2.new(0, 15, 0.5, -25)
-bubble.BackgroundColor3 = Color3.fromRGB(30, 30, 38)  -- Màu nền tối
+bubble.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 bubble.Image = "rbxassetid://11566993729"
-bubble.ImageColor3 = Color3.fromRGB(255, 255, 255)  -- Giữ màu gốc
-bubble.ImageTransparency = 0  -- Không trong suốt
-bubble.ScaleType = Enum.ScaleType.Fit  -- Ảnh vừa khít
+bubble.ImageColor3 = Color3.fromRGB(255, 255, 255)
+bubble.ImageTransparency = 0
+bubble.ScaleType = Enum.ScaleType.Fit
 bubble.Parent = SG
 C(bubble, 50)
 S(bubble, Color3.fromRGB(0, 200, 255), 2)
 
--- Thêm text dự phòng nếu ảnh không tải
 local bl = Instance.new("TextLabel")
 bl.Size = UDim2.new(1, 0, 1, 0)
 bl.BackgroundTransparency = 1
-bl.Text = "⚡"  -- Icon dự phòng nếu ảnh lỗi
+bl.Text = "⚡"
 bl.TextColor3 = Color3.fromRGB(255, 255, 255)
 bl.TextSize = 20
 bl.Font = Enum.Font.GothamBold
