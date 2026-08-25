@@ -1,7 +1,7 @@
 -- ============================================
--- LOAD RAYFIELD (DÙNG SOURCE CỦA BẠN)
+-- LOAD RAYFIELD (DÙNG SOURCE CỦA MÀY)
 -- ============================================
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source'))()
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source.lua'))()
 
 -- ============================================
 -- CODE AUTO FARM
