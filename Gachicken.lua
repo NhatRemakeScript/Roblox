@@ -456,13 +456,12 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
     end
 end)
 
--- ================== AUTO FEEDER ==================
+-- ================== AUTO FEEDER (CHỈ GEN 1) ==================
 CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
     if s then
         spawn(function()
             local hasBoughtGen1 = false
-            local hasBoughtGen2 = false
             local isUpgrading = false
             local rebirthDetected = false
             local rebirthTimer = 0
@@ -480,7 +479,6 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                     elseif rebirthReady and rebirthDetected then
                         if tick() - rebirthTimer >= 10 then
                             hasBoughtGen1 = false
-                            hasBoughtGen2 = false
                             isUpgrading = false
                             rebirthDetected = false
                             showNotification("✅ Đã reset trạng thái!")
@@ -491,36 +489,25 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                     end
                     
                     if not rebirthReady and not rebirthDetected then
-                        if not (hasBoughtGen1 and hasBoughtGen2) then
-                            if currentMoney >= 640 and not hasBoughtGen2 then
-                                pcall(function()
-                                    RS.Remotes.BuyGenerator:InvokeServer(2)
-                                end)
-                                hasBoughtGen2 = true
-                                showNotification("✅ Mua Generator 2!")
-                            elseif currentMoney >= 360 and not hasBoughtGen1 then
-                                pcall(function()
+                        if not hasBoughtGen1 then
+                            if currentMoney >= 360 then
+                                local success = pcall(function()
                                     RS.Remotes.BuyGenerator:InvokeServer(1)
                                 end)
-                                hasBoughtGen1 = true
-                                showNotification("✅ Mua Generator 1!")
+                                if success then
+                                    hasBoughtGen1 = true
+                                    showNotification("✅ Mua Generator 1 thành công!")
+                                end
                             end
-                            
+                        
                         else
                             if not isUpgrading then
                                 isUpgrading = true
-                                showNotification("⬆️ Bắt đầu Auto Upgrade!")
+                                showNotification("⬆️ Bắt đầu Auto Upgrade Gen 1!")
                             end
                             
-                            local a = math.random(1, 2)
                             pcall(function()
-                                RS.Remotes.UpgradeGenerator:InvokeServer(a)
-                            end)
-                            wait(randDelay(1.5, 2.5))
-                            
-                            local b = (a == 1) and 2 or 1
-                            pcall(function()
-                                RS.Remotes.UpgradeGenerator:InvokeServer(b)
+                                RS.Remotes.UpgradeGenerator:InvokeServer(1)
                             end)
                         end
                     end
