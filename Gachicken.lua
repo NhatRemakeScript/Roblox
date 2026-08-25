@@ -467,7 +467,9 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                                 showNotification("✅ Mua Generator 1 thành công!")
                             end
                         else
-                            showNotification("💰 Chưa đủ tiền mua Gen 1: " .. currentMoney .. "/360")
+                            pcall(function()
+                                RS.Remotes.TowerStart:InvokeServer()
+
                         end
                         
                     else
