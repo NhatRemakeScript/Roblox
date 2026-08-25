@@ -5,11 +5,19 @@ local TS = game:GetService("TweenService")
 local RS = game:GetService("ReplicatedStorage")
 local VU = game:GetService("VirtualUser")
 
+-- ================== ANTI-DETECT GUI ==================
 local SG = Instance.new("ScreenGui")
-SG.Name = "Menu"
-SG.Parent = Player:WaitForChild("PlayerGui")
+SG.Name = "Settings_" .. math.random(100000, 999999)
 
-local rainbow = false
+if gethui then
+    SG.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(SG)
+    SG.Parent = game:GetService("CoreGui")
+else
+    SG.Parent = Player:WaitForChild("PlayerGui")
+end
+
 local rainbowHue = 0
 
 local function C(o, r)
@@ -25,7 +33,33 @@ local function S(o, c, t)
     s.Parent = o
 end
 
--- ================== NOTIFICATION SYSTEM ==================
+-- ================== SAFE REMOTE ==================
+local function safeInvoke(remoteName, ...)
+    local remote = RS.Remotes:FindFirstChild(remoteName)
+    if not remote then return false end
+    
+    wait(math.random(50, 150) / 100)
+    
+    local success = pcall(function()
+        if remote:IsA("RemoteFunction") then
+            return remote:InvokeServer(...)
+        else
+            remote:FireServer(...)
+            return true
+        end
+    end)
+    
+    return success
+end
+
+-- ================== SMART DELAY ==================
+local function smartDelay(min, max)
+    local base = math.random(min * 100, max * 100) / 100
+    local jitter = math.random(-80, 80) / 100
+    return math.max(2, base + jitter)
+end
+
+-- ================== NOTIFICATION ==================
 local notificationFrame = Instance.new("Frame")
 notificationFrame.Size = UDim2.new(0, 250, 0, 40)
 notificationFrame.Position = UDim2.new(1, -260, 0, -50)
@@ -88,8 +122,8 @@ end
 
 -- ================== MAIN GUI ==================
 local MF = Instance.new("Frame")
-MF.Size = UDim2.new(0, 380, 0, 320)
-MF.Position = UDim2.new(0.5, -190, 0.5, -160)
+MF.Size = UDim2.new(0, 380, 0, 350)
+MF.Position = UDim2.new(0.5, -190, 0.5, -175)
 MF.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MF.Visible = false
 MF.Parent = SG
@@ -99,8 +133,7 @@ local mainStroke = S(MF, Color3.fromRGB(255, 0, 0), 1.5)
 local function rainbowLoop()
     while true do
         rainbowHue = (rainbowHue + 0.01) % 1
-        local col = Color3.fromHSV(rainbowHue, 1, 1)
-        mainStroke.Color = col
+        mainStroke.Color = Color3.fromHSV(rainbowHue, 1, 1)
         wait(0.01)
     end
 end
@@ -116,7 +149,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡CC HUB 2.4.0"
+TT.Text = "⚡ DucNhat 2.0.3 FULL"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -163,7 +196,6 @@ TMisc.Font = Enum.Font.GothamMedium
 TMisc.Parent = TC
 C(TMisc, 6)
 
--- Scrolling frame
 local CP = Instance.new("ScrollingFrame")
 CP.Size = UDim2.new(1, -10, 1, -75)
 CP.Position = UDim2.new(0, 5, 0, 70)
@@ -239,9 +271,8 @@ local function CreateToggle(parent, text, def, cb)
     return fr, setState
 end
 
--- ================== TABS CONTENT ==================
+-- ================== TABS ==================
 local mainTab = Instance.new("Frame")
-mainTab.Name = "MainTab"
 mainTab.Size = UDim2.new(1, 0, 0, 0)
 mainTab.BackgroundTransparency = 1
 mainTab.AutomaticSize = Enum.AutomaticSize.Y
@@ -254,7 +285,6 @@ mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
 mainLayout.Parent = mainTab
 
 local miscTab = Instance.new("Frame")
-miscTab.Name = "MiscTab"
 miscTab.Size = UDim2.new(1, 0, 0, 0)
 miscTab.BackgroundTransparency = 1
 miscTab.AutomaticSize = Enum.AutomaticSize.Y
@@ -267,12 +297,11 @@ miscLayout.Padding = UDim.new(0, 8)
 miscLayout.SortOrder = Enum.SortOrder.LayoutOrder
 miscLayout.Parent = miscTab
 
--- ================== GLOBAL VARIABLES ==================
+-- ================== VARIABLES ==================
 local reb = false
 local feeder = false
 local ne = false
 local autoTower = false
-local pauseTowerStart = false
 local towerCooldown = 0
 
 -- ================== ANTI-AFK ==================
@@ -285,71 +314,12 @@ spawn(function()
     end
 end)
 
--- ================== HELPER FUNCTIONS ==================
-local function randDelay(min, max)
-    return math.random(min * 100, max * 100) / 100
-end
-
-local function isGuiActuallyVisible(gui)
-    if not gui or not gui:IsA("GuiObject") then
-        return false
-    end
-    local current = gui
-    while current do
-        if current:IsA("GuiObject") and not current.Visible then
-            return false
-        end
-        current = current.Parent
-    end
-    if gui.AbsoluteSize.X <= 0 or gui.AbsoluteSize.Y <= 0 then
-        return false
-    end
-    return true
-end
-
-local function isRebirthReadyVisible()
-    local notice = Player:WaitForChild("PlayerGui"):FindFirstChild("RebirthNotice")
-    if not notice then
-        return false
-    end
-    for _, gui in ipairs(notice:GetDescendants()) do
-        if gui:IsA("TextLabel") or gui:IsA("TextButton") then
-            if gui.Text and gui.Text:upper():find("REBIRTH READY!") and isGuiActuallyVisible(gui) then
-                return true
-            end
-        end
-    end
-    return false
-end
-
-local function getRebirthNoticeStatus()
-    local notice = Player:WaitForChild("PlayerGui"):FindFirstChild("RebirthNotice")
-    if not notice then
-        return "—"
-    end
-    local found = false
-    local visibleOnScreen = false
-    for _, gui in ipairs(notice:GetDescendants()) do
-        if gui:IsA("TextLabel") or gui:IsA("TextButton") then
-            if gui.Text and gui.Text:upper():find("REBIRTH READY!") then
-                found = true
-                if isGuiActuallyVisible(gui) then
-                    visibleOnScreen = true
-                end
-            end
-        end
-    end
-    if not found then return "—" end
-    return visibleOnScreen and "✔" or "✖"
-end
-
+-- ================== HELPERS ==================
 local function getMoney()
     local ls = Player:FindFirstChild("leaderstats")
     if ls then
         local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
-        if money then
-            return tonumber(money.Value) or 0
-        end
+        if money then return tonumber(money.Value) or 0 end
     end
     return 0
 end
@@ -358,20 +328,30 @@ local function getCurrentTower()
     local ls = Player:FindFirstChild("leaderstats")
     if ls then
         local tower = ls:FindFirstChild("Tower")
-        if tower then
-            return tonumber(tower.Value) or 0
-        end
+        if tower then return tonumber(tower.Value) or 0 end
     end
     return 0
 end
 
-local function hasTowerContinue()
-    local playerGui = Player:WaitForChild("PlayerGui")
-    local tc = playerGui:FindFirstChild("TowerContinue")
-    if not tc then return false end
-    for _, child in ipairs(tc:GetDescendants()) do
-        if child:IsA("GuiObject") and child.Visible and isGuiActuallyVisible(child) then
-            return true
+local function isGuiActuallyVisible(gui)
+    if not gui or not gui:IsA("GuiObject") then return false end
+    local current = gui
+    while current do
+        if current:IsA("GuiObject") and not current.Visible then return false end
+        current = current.Parent
+    end
+    if gui.AbsoluteSize.X <= 0 or gui.AbsoluteSize.Y <= 0 then return false end
+    return true
+end
+
+local function isRebirthReadyVisible()
+    local notice = Player:WaitForChild("PlayerGui"):FindFirstChild("RebirthNotice")
+    if not notice then return false end
+    for _, gui in ipairs(notice:GetDescendants()) do
+        if gui:IsA("TextLabel") or gui:IsA("TextButton") then
+            if gui.Text and gui.Text:upper():find("REBIRTH READY!") and isGuiActuallyVisible(gui) then
+                return true
+            end
         end
     end
     return false
@@ -395,12 +375,8 @@ local function moveToPosition(targetPos)
     local startTime = tick()
     while isWalking and tick() - startTime < 15 do
         local newDist = (root.Position - targetPos).Magnitude
-        if newDist < 5 then
-            return true
-        end
-        if humanoid.MoveDirection.Magnitude < 0.5 and newDist > 10 then
-            break
-        end
+        if newDist < 5 then return true end
+        if humanoid.MoveDirection.Magnitude < 0.5 and newDist > 10 then break end
         wait(0.5)
     end
     return false
@@ -421,29 +397,26 @@ CreateToggle(mainTab, "👼 Auto Rebirth", false, function(s)
                     if rebirthReady and not isRebirthing then
                         isRebirthing = true
                         rebirthStartTime = tick()
-                        showNotification("🔄 Rebirth Ready! Gửi Rebirth...")
+                        showNotification("🔄 Rebirth Ready!")
                     end
                     
                     if isRebirthing then
                         if tick() - rebirthStartTime < 10 then
-                            pcall(function()
-                                RS.Remotes.Rebirth:InvokeServer()
-                            end)
-                            wait(randDelay(1, 3))
+                            safeInvoke("Rebirth")
+                            wait(smartDelay(2, 4))
                         else
                             isRebirthing = false
                             showNotification("✅ Hoàn thành Rebirth!")
                         end
                     end
                 end)
-                
-                wait(randDelay(0.5, 1))
+                wait(smartDelay(1, 2))
             end
         end)
     end
 end)
 
--- ================== AUTO FEEDER (FIX HOÀN CHỈNH) ==================
+-- ================== AUTO FEEDER ==================
 CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
     feeder = s
     if s then
@@ -455,27 +428,20 @@ CreateToggle(mainTab, "🌾 Auto Feeder", false, function(s)
                     
                     if currentTower == 0 then
                         if currentMoney >= 360 then
-                            pcall(function()
-                                RS.Remotes.BuyGenerator:InvokeServer(1)
-                            end)
-                            showNotification("✅ Mua Generator 1 thành công!")
+                            safeInvoke("BuyGenerator", 1)
+                            showNotification("✅ Mua Generator 1!")
                         end
                     else
-                        pcall(function()
-                            RS.Remotes.UpgradeGenerator:InvokeServer(1)
-                        end)
+                        safeInvoke("UpgradeGenerator", 1)
                     end
                 end)
-                
-                wait(randDelay(1, 2))
+                wait(smartDelay(4, 7))
             end
         end)
     end
 end)
 
 -- ================== COLLECT EGG ==================
-local currentTarget = nil
-local isWalking = false
 local incubatorTimer = 0
 
 CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
@@ -486,9 +452,7 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
                 pcall(function()
                     incubatorTimer = incubatorTimer + 1
                     if incubatorTimer >= 30 then
-                        pcall(function()
-                            RS.Remotes.IncubatorClaim:InvokeServer()
-                        end)
+                        safeInvoke("IncubatorClaim")
                         incubatorTimer = 0
                     end
 
@@ -520,16 +484,17 @@ CreateToggle(mainTab, "🥚 Collect Egg", false, function(s)
                         end
                     end
                 end)
-                wait(1)
+                wait(smartDelay(3, 5))
             end
         end)
     end
 end)
 
+-- ================== AUTO TOWER ==================
 CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     autoTower = s
     if s then
-        towerCooldown = randDelay(27.3, 29.5)
+        towerCooldown = smartDelay(27.3, 29.5)
         
         spawn(function()
             while autoTower do
@@ -537,74 +502,28 @@ CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
                     local currentTower = getCurrentTower()
                     pcall(function()
                         if currentTower > 0 then
-                            RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
-                            wait(randDelay(1, 2))
-                            RS.Remotes.TowerStart:InvokeServer()
+                            safeInvoke("TowerElevator", currentTower + 1)
+                            wait(smartDelay(1, 2))
+                            safeInvoke("TowerStart")
                         else
-                            RS.Remotes.TowerStart:InvokeServer()
+                            safeInvoke("TowerStart")
                         end
                     end)
-                    towerCooldown = randDelay(27.3, 29.5)
+                    towerCooldown = smartDelay(27.3, 29.5)
                 else
                     towerCooldown = towerCooldown - 0.1
                 end
                 wait(0.1)
             end
         end)
-        
     else
         towerCooldown = 0
-    end
-end)
--- ================== TOWER INFO FRAME ==================
-local towerInfoFrame = Instance.new("Frame")
-towerInfoFrame.Size = UDim2.new(1, 0, 0, 50)
-towerInfoFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-towerInfoFrame.Parent = mainTab
-C(towerInfoFrame, 8)
-S(towerInfoFrame, Color3.fromRGB(50, 50, 60), 1)
-
-local towerInfoLabel = Instance.new("TextLabel")
-towerInfoLabel.Size = UDim2.new(1, -10, 1, -10)
-towerInfoLabel.Position = UDim2.new(0, 5, 0, 5)
-towerInfoLabel.BackgroundTransparency = 1
-towerInfoLabel.Text = "TowerCD: N/A\nText: —\nCurrentTower: N/A"
-towerInfoLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-towerInfoLabel.TextSize = 12
-towerInfoLabel.Font = Enum.Font.GothamMedium
-towerInfoLabel.TextWrapped = true
-towerInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
-towerInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
-towerInfoLabel.Parent = towerInfoFrame
-
-local function updateTowerInfo()
-    local cdText = "N/A"
-    if autoTower then
-        cdText = string.format("%.1fs", towerCooldown)
-    end
-    local textStatus = getRebirthNoticeStatus()
-    local currentTower = "N/A"
-    local ls = Player:FindFirstChild("leaderstats")
-    if ls then
-        local tower = ls:FindFirstChild("Tower")
-        if tower then
-            currentTower = tostring(tower.Value)
-        end
-    end
-    towerInfoLabel.Text = "🕒 TowerCD: " .. cdText .. "\n💬 Text: " .. textStatus .. "\n🗼 CurrentTower: " .. currentTower
-end
-
-spawn(function()
-    while true do
-        updateTowerInfo()
-        wait(0.5)
     end
 end)
 
 -- ================== STATS TAB ==================
 local statsFrame = Instance.new("Frame")
 statsFrame.Size = UDim2.new(1, 0, 1, 0)
-statsFrame.Position = UDim2.new(0, 0, 0, 0)
 statsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 statsFrame.Parent = miscTab
 C(statsFrame, 8)
@@ -693,29 +612,10 @@ local function updateStats()
     local money = ls:FindFirstChild("Money") or ls:FindFirstChild("Cash")
     local level = ls:FindFirstChild("Level")
 
-    if corn then
-        cornValue.Text = tostring(corn.Value) .. "/s"
-    else
-        cornValue.Text = "N/A"
-    end
-
-    if tower then
-        towerValue.Text = tostring(tower.Value)
-    else
-        towerValue.Text = "N/A"
-    end
-
-    if money then
-        moneyValue.Text = tostring(money.Value)
-    else
-        moneyValue.Text = "N/A"
-    end
-
-    if level then
-        levelValue.Text = tostring(level.Value)
-    else
-        levelValue.Text = "N/A"
-    end
+    if corn then cornValue.Text = tostring(corn.Value) .. "/s" else cornValue.Text = "N/A" end
+    if tower then towerValue.Text = tostring(tower.Value) else towerValue.Text = "N/A" end
+    if money then moneyValue.Text = tostring(money.Value) else moneyValue.Text = "N/A" end
+    if level then levelValue.Text = tostring(level.Value) else levelValue.Text = "N/A" end
 end
 
 spawn(function()
@@ -725,7 +625,7 @@ spawn(function()
     end
 end)
 
--- ================== CANVAS + TAB SWITCH ==================
+-- ================== CANVAS + TAB ==================
 local function calcCanvas()
     local h = 0
     for _, ch in ipairs(CP:GetChildren()) do
@@ -757,12 +657,8 @@ local function switchTab(tn)
     calcCanvas()
 end
 
-TMain.MouseButton1Click:Connect(function()
-    switchTab("Main")
-end)
-TMisc.MouseButton1Click:Connect(function()
-    switchTab("Stats")
-end)
+TMain.MouseButton1Click:Connect(function() switchTab("Main") end)
+TMisc.MouseButton1Click:Connect(function() switchTab("Stats") end)
 
 local function onToggleAdded()
     task.wait(0.05)
@@ -773,27 +669,18 @@ miscTab.ChildAdded:Connect(onToggleAdded)
 
 switchTab("Main")
 
--- ================== BUBBLE ICON (FIX LỖI) ==================
-local bubble = Instance.new("ImageButton")
+-- ================== BUBBLE ICON ==================
+local bubble = Instance.new("TextButton")
 bubble.Size = UDim2.new(0, 50, 0, 50)
 bubble.Position = UDim2.new(0, 15, 0.5, -25)
 bubble.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-bubble.Image = "rbxassetid://2015193"  -- Dùng ID ảnh mặc định
-bubble.ImageColor3 = Color3.fromRGB(255, 255, 255)
-bubble.ImageTransparency = 0
+bubble.Text = "⚡"
+bubble.TextColor3 = Color3.fromRGB(0, 200, 255)
+bubble.TextSize = 25
+bubble.Font = Enum.Font.GothamBold
 bubble.Parent = SG
 C(bubble, 50)
 S(bubble, Color3.fromRGB(0, 200, 255), 2)
-
-local bl = Instance.new("TextLabel")
-bl.Size = UDim2.new(1, 0, 1, 0)
-bl.BackgroundTransparency = 1
-bl.Text = "⚡"
-bl.TextColor3 = Color3.fromRGB(255, 255, 255)
-bl.TextSize = 20
-bl.Font = Enum.Font.GothamBold
-bl.TextScaled = true
-bl.Parent = bubble
 
 local open = false
 bubble.MouseButton1Click:Connect(function()
@@ -817,9 +704,7 @@ UIS.InputChanged:Connect(function(i)
     end
 end)
 UIS.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        drag.active = false
-    end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then drag.active = false end
 end)
 
 -- Kéo thả bubble
@@ -838,12 +723,10 @@ UIS.InputChanged:Connect(function(i)
     end
 end)
 UIS.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        bdrag.active = false
-    end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then bdrag.active = false end
 end)
 
--- Nút thu nhỏ / phóng to menu
+-- Nút thu nhỏ
 local min = false
 CB.MouseButton1Click:Connect(function()
     min = not min
@@ -855,7 +738,7 @@ CB.MouseButton1Click:Connect(function()
     else
         CP.Visible = true
         TC.Visible = true
-        MF.Size = UDim2.new(0, 380, 0, 320)
+        MF.Size = UDim2.new(0, 380, 0, 350)
         CB.Text = "−"
         task.wait(0.05)
         calcCanvas()
