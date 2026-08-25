@@ -115,7 +115,7 @@ local TT = Instance.new("TextLabel")
 TT.Size = UDim2.new(1, -60, 1, 0)
 TT.Position = UDim2.new(0, 15, 0, 0)
 TT.BackgroundTransparency = 1
-TT.Text = "⚡ GACF 1.6.3"
+TT.Text = "⚡ ducnhatdz 2.0.1"
 TT.TextColor3 = Color3.fromRGB(255, 255, 255)
 TT.TextSize = 16
 TT.Font = Enum.Font.GothamBold
@@ -541,25 +541,50 @@ end)
 CreateToggle(mainTab, "🗼 Auto Tower", false, function(s)
     autoTower = s
     if s then
-        towerCooldown = randDelay(27.5, 29.7)
+        towerCooldown = 0  -- Không đếm ngay từ đầu
         local lastTowerContinueDecline = 0
+        local isCountingDown = false  -- Trạng thái đang đếm thời gian
 
         spawn(function()
             while autoTower do
                 if not pauseTowerStart then
-                    if towerCooldown <= 0 then
-                        local currentTower = getCurrentTower()
-                        pcall(function()
-                            if currentTower > 0 then
-                                RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
-                                RS.Remotes.TowerStart:InvokeServer()
-                            else
-                                RS.Remotes.TowerStart:InvokeServer()
-                            end
-                        end)
-                        towerCooldown = randDelay(27.5, 29.7)
+                    local towerContinueVisible = hasTowerContinue()
+                    
+                    if towerContinueVisible then
+                        -- Bắt đầu đếm thời gian khi TowerContinue hiện
+                        if not isCountingDown then
+                            isCountingDown = true
+                            towerCooldown = randDelay(27.5, 29.7)
+                            showNotification("🕒 Bắt đầu đếm thời gian Tower!")
+                        end
+                        
+                        -- Đếm ngược
+                        if towerCooldown > 0 then
+                            towerCooldown = towerCooldown - 0.1
+                        end
+                        
+                        -- Khi đếm xong → gửi TowerStart/Elevator
+                        if towerCooldown <= 0 then
+                            local currentTower = getCurrentTower()
+                            pcall(function()
+                                if currentTower > 0 then
+                                    RS.Remotes.TowerElevator:InvokeServer(currentTower + 1)
+                                    wait(randDelay(1, 2))
+                                    RS.Remotes.TowerStart:InvokeServer()
+                                else
+                                    RS.Remotes.TowerStart:InvokeServer()
+                                end
+                            end)
+                            
+                            -- Reset đếm thời gian
+                            isCountingDown = false
+                            towerCooldown = 0
+                            showNotification("✅ Đã gửi Tower Start!")
+                        end
                     else
-                        towerCooldown = towerCooldown - 0.1
+                        -- TowerContinue không hiện → reset
+                        isCountingDown = false
+                        towerCooldown = 0
                     end
                 end
                 wait(0.1)
@@ -831,23 +856,24 @@ mainTab.ChildAdded:Connect(onToggleAdded)
 miscTab.ChildAdded:Connect(onToggleAdded)
 
 switchTab("Main")
-
--- ================== BUBBLE ICON ==================
+-- ================== BUBBLE ICON (FIX) ==================
 local bubble = Instance.new("ImageButton")
 bubble.Size = UDim2.new(0, 50, 0, 50)
 bubble.Position = UDim2.new(0, 15, 0.5, -25)
-bubble.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+bubble.BackgroundColor3 = Color3.fromRGB(30, 30, 38)  -- Màu nền tối
 bubble.Image = "rbxassetid://11566993729"
-bubble.ImageColor3 = Color3.fromRGB(255, 255, 255)
-bubble.ImageTransparency = 0
+bubble.ImageColor3 = Color3.fromRGB(255, 255, 255)  -- Giữ màu gốc
+bubble.ImageTransparency = 0  -- Không trong suốt
+bubble.ScaleType = Enum.ScaleType.Fit  -- Ảnh vừa khít
 bubble.Parent = SG
 C(bubble, 50)
 S(bubble, Color3.fromRGB(0, 200, 255), 2)
 
+-- Thêm text dự phòng nếu ảnh không tải
 local bl = Instance.new("TextLabel")
 bl.Size = UDim2.new(1, 0, 1, 0)
 bl.BackgroundTransparency = 1
-bl.Text = ""
+bl.Text = "⚡"  -- Icon dự phòng nếu ảnh lỗi
 bl.TextColor3 = Color3.fromRGB(255, 255, 255)
 bl.TextSize = 20
 bl.Font = Enum.Font.GothamBold
