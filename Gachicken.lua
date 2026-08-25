@@ -1,5 +1,49 @@
+-- Fix lỗi Shadow cho Rayfield
 local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Rayfield/refs/heads/main/source'))()
 
+-- Patch lỗi Shadow
+local oldCreateWindow = Rayfield.CreateWindow
+Rayfield.CreateWindow = function(...)
+    local window = oldCreateWindow(...)
+    -- Vô hiệu hóa Shadow trong TabList Template
+    local original = window._tabListTemplate
+    if original then
+        local shadow = original:FindFirstChild("Shadow")
+        if shadow then
+            shadow:Destroy()
+        end
+    end
+    return window
+end
+
+-- Hoặc sửa trực tiếp
+local function FixShadow()
+    pcall(function()
+        local main = Rayfield._main
+        if main then
+            local tablist = main:FindFirstChild("TabList")
+            if tablist then
+                local template = tablist:FindFirstChild("Template")
+                if template then
+                    local shadow = template:FindFirstChild("Shadow")
+                    if shadow then
+                        shadow:Destroy()
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- Chạy fix sau khi load
+spawn(function()
+    wait(1)
+    FixShadow()
+end)
+
+-- ============================================
+-- CODE AUTO FARM CỦA BẠN
+-- ============================================
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
