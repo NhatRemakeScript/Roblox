@@ -7,8 +7,8 @@ local Toggles = Library.Toggles
 
 -- ================== TẠO WINDOW ==================
 local Window = Library:CreateWindow({
-    Title = "⚡ DucNhat HUB 2.2.0",
-    Footer = "DucNhat HUB",
+    Title = "Settings",
+    Footer = "VN Hub",
     Icon = 95816097006870,
     NotifySide = "Right",
     ShowCustomCursor = true,
