@@ -3,42 +3,44 @@ local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 local Toggles = Library.Toggles
 local Options = Library.Options
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local P = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
 local VIM = game:GetService("VirtualInputManager")
 local VU = game:GetService("VirtualUser")
-local RS = game:GetService("ReplicatedStorage")
-local LP = Players.LocalPlayer
+local Run = game:GetService("RunService")
+local LP = P.LocalPlayer
 local PG = LP:WaitForChild("PlayerGui")
 
-local FISH_GUI = "Rod"
-local REEL_GUI = "ReelCounterGui"
-local ISLANDS = {"desert","fossil","jungle","snow","starter","volcano"}
-local SKILLS = {Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V}
+local FG = "Rod"
+local RG = "ReelCounterGui"
+local IL = {"desert","fossil","jungle","snow","starter","volcano"}
+local SK = {Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V}
 
-local W = Library:CreateWindow({Title="FM-DNHUB",Footer="Obsidian UI",Icon=6687255998,NotifySide="Right",ShowCustomCursor=true,AutoShow=true})
-local Main = W:AddTab("Main", "user")
-local Tele = W:AddTab("Teleport", "map-pin")
-local Plr = W:AddTab("Player", "user")
-local MG = Main:AddGroupbox({Side="Left",Name="Auto",IconName="boxes"})
-local SG = Main:AddGroupbox({Side="Right",Name="Sell",IconName="dollar-sign"})
-local TG = Tele:AddGroupbox({Side="Left",Name="Teleport",IconName="map-pin"})
-local PG2 = Plr:AddGroupbox({Side="Left",Name="Player",IconName="user"})
+local W = Library:CreateWindow({Title="FM-DNHUB",Footer="Obsidian",Icon=6687255998,NotifySide="Right",ShowCustomCursor=true,AutoShow=true})
+local Main = W:AddTab("Chính","user")
+local Tele = W:AddTab("Dịch chuyển","map-pin")
+local Plr = W:AddTab("Người chơi","user")
+local MG = Main:AddGroupbox({Side="Left",Name="Tự động",IconName="boxes"})
+local SG2 = Main:AddGroupbox({Side="Right",Name="Bán cá",IconName="dollar-sign"})
+local IG = Main:AddGroupbox({Side="Right",Name="Thông tin",IconName="info"})
+local TG = Tele:AddGroupbox({Side="Left",Name="Đảo",IconName="map-pin"})
+local PG2 = Plr:AddGroupbox({Side="Left",Name="Người chơi",IconName="user"})
 
-local st = {fish=false,bypass=false,skill=false,sell=false,speed=false,hname=false}
+local st = {fish=false,bypass=false,skill=false,sell=false,speed=false,hname=false,autoSellFull=false}
 local island = "snow"
 local sellInt = 300
 local plat = nil
-local uiSince = {L=nil,R=nil,U=nil}
+local uiS = {L=nil,R=nil,U=nil}
 
+-- ANTI AFK
 LP.Idled:Connect(function() pcall(function() VU:CaptureController() VU:ClickButton2(Vector2.new()) end) end)
 task.spawn(function()
     while true do pcall(function() VU:CaptureController() VU:ClickButton2(Vector2.new()) end) task.wait(30) end
 end)
 
+-- PACKET
 local pkt = RS:WaitForChild("Stardust"):WaitForChild("Packages"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
-local cnt = 0
-local synced = false
+local cnt, synced = 0, false
 
 pcall(function()
     local mt = getrawmetatable(pkt)
@@ -70,6 +72,59 @@ local function sendPkt(op, pl)
     pcall(function() pkt:FireServer(b) end)
 end
 
+-- ĐẾM CÁ
+local function countBP()
+    local bp = LP:FindFirstChild("Backpack")
+    if not bp then return -1 end
+    local c = 0
+    for _, ch in ipairs(bp:GetChildren()) do
+        if not string.find(string.lower(ch.Name), "rod") then
+            c = c + 1
+        end
+    end
+    return c
+end
+
+-- LEADERSTATS
+local function setupLeaderstats()
+    local stats = LP:FindFirstChild("leaderstats")
+    if not stats then
+        stats = Instance.new("Folder")
+        stats.Name = "leaderstats"
+        stats.Parent = LP
+    end
+
+    local fish = stats:FindFirstChild("Fish")
+    if not fish then
+        fish = Instance.new("IntValue")
+        fish.Name = "Fish"
+        fish.Parent = stats
+    end
+
+    local slot = stats:FindFirstChild("Slot")
+    if not slot then
+        slot = Instance.new("IntValue")
+        slot.Name = "Slot"
+        slot.Parent = stats
+    end
+
+    return stats
+end
+
+task.spawn(function()
+    task.wait(1)
+    local stats = setupLeaderstats()
+    while true do
+        local n = countBP()
+        local fishVal = stats:FindFirstChild("Fish")
+        local slotVal = stats:FindFirstChild("Slot")
+        if fishVal then fishVal.Value = (n >= 0) and n or 0 end
+        if slotVal then slotVal.Value = 50 end
+        task.wait(2)
+    end
+end)
+
+-- PLATFORM
 local function createPlat()
     pcall(function()
         local c = LP.Character
@@ -96,11 +151,12 @@ local function removePlat()
     pcall(function() if plat and plat.Parent then plat:Destroy() end plat = nil end)
 end
 
+-- HELPERS
 local function hasBtn()
     local f = false
     pcall(function()
         for _, g in ipairs(PG:GetChildren()) do
-            if g:IsA("ScreenGui") and g.Enabled and g.Name == FISH_GUI then
+            if g:IsA("ScreenGui") and g.Enabled and g.Name == FG then
                 for _, d in ipairs(g:GetDescendants()) do
                     if d.Name == "FishingActionButton" and d:IsA("ImageButton") and d.Visible then f = true end
                 end
@@ -112,19 +168,19 @@ end
 
 local function clickHold(d)
     pcall(function()
-        local vp = workspace.CurrentCamera.ViewportSize
-        VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, true, game, 0)
+        local v = workspace.CurrentCamera.ViewportSize
+        VIM:SendMouseButtonEvent(v.X/2, v.Y/2, 0, true, game, 0)
         task.wait(d or 0.7)
-        VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, false, game, 0)
+        VIM:SendMouseButtonEvent(v.X/2, v.Y/2, 0, false, game, 0)
     end)
 end
 
 local function clickQuick()
     pcall(function()
-        local vp = workspace.CurrentCamera.ViewportSize
-        VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, true, game, 0)
+        local v = workspace.CurrentCamera.ViewportSize
+        VIM:SendMouseButtonEvent(v.X/2, v.Y/2, 0, true, game, 0)
         task.wait(0.02)
-        VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, false, game, 0)
+        VIM:SendMouseButtonEvent(v.X/2, v.Y/2, 0, false, game, 0)
     end)
 end
 
@@ -150,7 +206,7 @@ end
 
 local function scanMini()
     local tg
-    for _, g in ipairs(PG:GetChildren()) do if g:IsA("ScreenGui") and g.Name == REEL_GUI then tg = g break end end
+    for _, g in ipairs(PG:GetChildren()) do if g:IsA("ScreenGui") and g.Name == RG then tg = g break end end
     if not tg then return end
     local f = {L=false,R=false,U=false}
     pcall(function()
@@ -163,9 +219,9 @@ local function scanMini()
         end
     end)
     local n = tick()
-    if f.L then if not uiSince.L then uiSince.L = n end if n - uiSince.L >= 0.2 then sendKey(Enum.KeyCode.A) uiSince.L = nil end else uiSince.L = nil end
-    if f.R then if not uiSince.R then uiSince.R = n end if n - uiSince.R >= 0.2 then sendKey(Enum.KeyCode.D) uiSince.R = nil end else uiSince.R = nil end
-    if f.U then if not uiSince.U then uiSince.U = n end if n - uiSince.U >= 0.2 then sendKey(Enum.KeyCode.W) uiSince.U = nil end else uiSince.U = nil end
+    if f.L then if not uiS.L then uiS.L = n end if n - uiS.L >= 0.2 then sendKey(Enum.KeyCode.A) uiS.L = nil end else uiS.L = nil end
+    if f.R then if not uiS.R then uiS.R = n end if n - uiS.R >= 0.2 then sendKey(Enum.KeyCode.D) uiS.R = nil end else uiS.R = nil end
+    if f.U then if not uiS.U then uiS.U = n end if n - uiS.U >= 0.2 then sendKey(Enum.KeyCode.W) uiS.U = nil end else uiS.U = nil end
 end
 
 local function startBypass()
@@ -194,13 +250,13 @@ local function tweenTo(cf, speed)
         if not h or not hum then return end
         local oldAR = hum.AutoRotate
         hum.AutoRotate = false
-        local startCF = h.CFrame
-        local startRot = startCF - startCF.Position
-        local startPos = startCF.Position
-        local targetPos = cf.Position
-        local dist = (targetPos - startPos).Magnitude
-        if dist < 1 then h.CFrame = CFrame.new(targetPos) * startRot hum.AutoRotate = oldAR return end
-        local nc = RunService.Stepped:Connect(function()
+        local sCF = h.CFrame
+        local sRot = sCF - sCF.Position
+        local sPos = sCF.Position
+        local tPos = cf.Position
+        local dist = (tPos - sPos).Magnitude
+        if dist < 1 then h.CFrame = CFrame.new(tPos) * sRot hum.AutoRotate = oldAR return end
+        local nc = Run.Stepped:Connect(function()
             if c then
                 for _, p in ipairs(c:GetDescendants()) do
                     if p:IsA("BasePart") then p.CanCollide = false end
@@ -214,8 +270,8 @@ local function tweenTo(cf, speed)
             if not c2 then break end
             local h2 = c2:FindFirstChild("HumanoidRootPart")
             if not h2 then break end
-            local alpha = math.clamp((tick() - stk) / dur, 0, 1)
-            h2.CFrame = CFrame.new(startPos:Lerp(targetPos, alpha)) * startRot
+            local a = math.clamp((tick() - stk) / dur, 0, 1)
+            h2.CFrame = CFrame.new(sPos:Lerp(tPos, a)) * sRot
             h2.AssemblyLinearVelocity = Vector3.zero
             h2.AssemblyAngularVelocity = Vector3.zero
             task.wait(0.03)
@@ -224,10 +280,7 @@ local function tweenTo(cf, speed)
         local c3 = LP.Character
         if c3 then
             local h3 = c3:FindFirstChild("HumanoidRootPart")
-            if h3 then
-                h3.CFrame = CFrame.new(targetPos) * startRot
-                h3.AssemblyLinearVelocity = Vector3.zero
-            end
+            if h3 then h3.CFrame = CFrame.new(tPos) * sRot h3.AssemblyLinearVelocity = Vector3.zero end
             for _, p in ipairs(c3:GetDescendants()) do
                 if p:IsA("BasePart") then p.CanCollide = true end
             end
@@ -250,7 +303,7 @@ local function startSkill()
     if skillT then task.cancel(skillT); skillT = nil end
     skillT = task.spawn(function()
         while st.fish and st.skill do
-            for _, k in ipairs(SKILLS) do
+            for _, k in ipairs(SK) do
                 if not (st.fish and st.skill) then break end
                 sendKey(k)
             end
@@ -333,33 +386,25 @@ local function doSell()
         local s = tick()
         while not synced and tick() - s < 3 do task.wait(0.05) end
     end
-
     local wasFish = st.fish
     if wasFish then st.fish = false removePlat() task.wait(0.3) end
-
     pcall(function()
         local c = LP.Character
         if c then for _, t in ipairs(c:GetChildren()) do if t:IsA("Tool") then t.Parent = LP:FindFirstChild("Backpack") end end end
     end)
-
     local c = LP.Character
     if not c or not c:FindFirstChild("HumanoidRootPart") then
         if wasFish then st.fish = true; startFish() end
         return false
     end
     local oldCF = c.HumanoidRootPart.CFrame
-
     local npc = findNPC()
     if not npc then
-        Library:Notify({Title="Sell",Description="Không tìm thấy NPC",Time=3})
+        Library:Notify({Title="Bán cá",Description="Không tìm thấy NPC",Time=3})
         if wasFish then st.fish = true; startFish() end
         return false
     end
-
-    -- Tele trực tiếp tới NPC
     teleTo(CFrame.new(npc.Position + Vector3.new(0, 3, 5)))
-
-    -- Gửi packet sell
     for i = 1, 5 do sendPkt("Z") task.wait(0.1) end
     task.wait(0.2)
     sendPkt("d")
@@ -367,19 +412,14 @@ local function doSell()
     sendPkt("d")
     task.wait(0.2)
     sendPkt("a", {0x01})
-
-    -- Tele về vị trí cũ
     task.wait(0.3)
     teleTo(oldCF)
     resetC()
     task.wait(0.3)
-
-    -- Nhấn phím 1 để cầm lại cần câu
     sendKey(Enum.KeyCode.One)
     task.wait(0.2)
-
     if wasFish then st.fish = true; startFish() end
-    Library:Notify({Title="Sell",Description="Đã sell xong!",Time=2})
+    Library:Notify({Title="Bán cá",Description="Đã bán xong!",Time=2})
     return true
 end
 
@@ -390,6 +430,19 @@ local function startSell()
             if not st.sell then break end
             doSell()
             task.wait(1)
+        end
+    end)
+end
+
+local function startAutoSellFull()
+    task.spawn(function()
+        while st.autoSellFull do
+            if countBP() >= 50 then
+                Library:Notify({Title="Bán cá",Description="Kho đầy, đang bán...",Time=2})
+                doSell()
+                task.wait(2)
+            end
+            task.wait(2)
         end
     end)
 end
@@ -409,20 +462,19 @@ end
 
 local function teleIsland(n)
     local i = findIsland(n)
-    if not i then Library:Notify({Title="Teleport",Description="Không tìm thấy island_"..n,Time=3}) return end
+    if not i then Library:Notify({Title="Dịch chuyển",Description="Không tìm thấy island_"..n,Time=3}) return end
     local sp = findSpawn(i)
-    if not sp then Library:Notify({Title="Teleport",Description="Không có spawn",Time=3}) return end
+    if not sp then Library:Notify({Title="Dịch chuyển",Description="Không có spawn",Time=3}) return end
     tweenTo(CFrame.new(sp.Position + Vector3.new(0, 5, 0)), 40)
     resetC()
     task.wait(0.3)
     sendKey(Enum.KeyCode.One)
     task.wait(0.2)
-    Library:Notify({Title="Teleport",Description="Đã tới island_"..n,Time=2})
+    Library:Notify({Title="Dịch chuyển",Description="Đã tới island_"..n,Time=2})
 end
 
 local hnR = false
 local hnC = {}
-
 local function applyHN()
     pcall(function()
         local n = LP.Name
@@ -439,33 +491,47 @@ local function applyHN()
         for _, g in ipairs(PG:GetChildren()) do if g:IsA("ScreenGui") then sc(g) end end
     end)
 end
-
 local function startHN()
     if hnR then return end
     hnR = true
     task.spawn(function() while st.hname do applyHN() task.wait(0.3) end hnR = false end)
 end
-
 local function restoreHN()
     for o, d in pairs(hnC) do pcall(function() if o and o.Parent then o.Text = d.t o.Visible = d.v o.TextTransparency = d.tr end end) end
     hnC = {}
 end
 
-MG:AddToggle("Fish", {Text="Auto Fishing", Default=false, Callback=function(v) st.fish=v if v then startFish() else stopFish() end end})
-MG:AddToggle("Skill", {Text="Auto Skill", Default=false, Callback=function(v) st.skill=v if v and st.fish then startSkill() end end})
-MG:AddToggle("Bypass", {Text="Bypass Minigame", Default=false, Callback=function(v) st.bypass=v if v then startBypass() end end})
+-- UI
+MG:AddToggle("Fish", {Text="Tự động câu", Default=false, Callback=function(v) st.fish=v if v then startFish() else stopFish() end end})
+MG:AddToggle("Skill", {Text="Tự động kỹ năng", Default=false, Callback=function(v) st.skill=v if v and st.fish then startSkill() end end})
+MG:AddToggle("Bypass", {Text="Vượt Minigame", Default=false, Callback=function(v) st.bypass=v if v then startBypass() end end})
 
-SG:AddToggle("Sell", {Text="Auto Sell", Default=false, Callback=function(v) st.sell=v if v then startSell() end end})
-SG:AddSlider("SellInt", {Text="Thời gian (giây)", Default=300, Min=30, Max=3600, Rounding=0, Compact=false, Callback=function(v) sellInt=v end})
-SG:AddButton("SellNow", {Text="SELL NOW", Func=function() task.spawn(doSell) end})
+SG2:AddToggle("Sell", {Text="Tự động bán", Default=false, Callback=function(v) st.sell=v if v then startSell() end end})
+SG2:AddToggle("AutoSellFull", {Text="Bán nếu đầy kho (50/50)", Default=false, Callback=function(v) st.autoSellFull=v if v then startAutoSellFull() end end})
+SG2:AddSlider("SellInt", {Text="Thời gian (giây)", Default=300, Min=30, Max=3600, Rounding=0, Compact=false, Callback=function(v) sellInt=v end})
+SG2:AddButton("SellNow", {Text="BÁN NGAY", Func=function() task.spawn(doSell) end})
 
-TG:AddDropdown("Island", {Text="Chọn đảo", Values=ISLANDS, Default=1, Multi=false, Callback=function(v) island=v end})
-TG:AddButton("Tele", {Text="TELEPORT", Func=function() teleIsland(island) end})
+local bpLabelObj = IG:AddLabel("BpCount", {Text = "Ba lô: --/50", DoesLoop = false})
 
-PG2:AddToggle("Speed", {Text="Speed (40)", Default=false, Callback=function(v) st.speed=v if LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid.WalkSpeed = v and 40 or 16 end end})
-PG2:AddToggle("HName", {Text="Hide Name", Default=false, Callback=function(v) st.hname=v if v then startHN() else restoreHN() end end})
-PG2:AddButton("Kill", {Text="Kill Menu (Unload)", Func=function()
-    st.fish=false st.bypass=false st.skill=false st.sell=false st.speed=false st.hname=false
+task.spawn(function()
+    while true do
+        local n = countBP()
+        if n < 0 then
+            bpLabelObj:Set("Ba lô: --/50")
+        else
+            bpLabelObj:Set("Ba lô: " .. n .. "/50")
+        end
+        task.wait(2)
+    end
+end)
+
+TG:AddDropdown("Island", {Text="Chọn đảo", Values=IL, Default=1, Multi=false, Callback=function(v) island=v end})
+TG:AddButton("Tele", {Text="DỊCH CHUYỂN", Func=function() teleIsland(island) end})
+
+PG2:AddToggle("Speed", {Text="Tốc độ (40)", Default=false, Callback=function(v) st.speed=v if LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid.WalkSpeed = v and 40 or 16 end end})
+PG2:AddToggle("HName", {Text="Ẩn tên", Default=false, Callback=function(v) st.hname=v if v then startHN() else restoreHN() end end})
+PG2:AddButton("Kill", {Text="Tắt Menu", Func=function()
+    st.fish=false st.bypass=false st.skill=false st.sell=false st.speed=false st.hname=false st.autoSellFull=false
     removePlat()
     if skillT then task.cancel(skillT); skillT=nil end
     restoreHN()
