@@ -55,6 +55,11 @@ pcall(function()
     setreadonly(mt, true)
 end)
 
+task.spawn(function()
+    local t = tick()
+    while not synced and tick() - t < 15 do task.wait(0.1) end
+end)
+
 local function sendPkt(op, pl)
     cnt = (cnt + 1) % 256
     local len = 2 + (pl and #pl or 0)
@@ -179,6 +184,58 @@ local function teleTo(cf)
     end)
 end
 
+local function tweenTo(cf, speed)
+    speed = speed or 40
+    pcall(function()
+        local c = LP.Character
+        if not c then return end
+        local h = c:FindFirstChild("HumanoidRootPart")
+        local hum = c:FindFirstChildOfClass("Humanoid")
+        if not h or not hum then return end
+        local oldAR = hum.AutoRotate
+        hum.AutoRotate = false
+        local startCF = h.CFrame
+        local startRot = startCF - startCF.Position
+        local startPos = startCF.Position
+        local targetPos = cf.Position
+        local dist = (targetPos - startPos).Magnitude
+        if dist < 1 then h.CFrame = CFrame.new(targetPos) * startRot hum.AutoRotate = oldAR return end
+        local nc = RunService.Stepped:Connect(function()
+            if c then
+                for _, p in ipairs(c:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide = false end
+                end
+            end
+        end)
+        local dur = dist / speed
+        local stk = tick()
+        while tick() - stk < dur do
+            local c2 = LP.Character
+            if not c2 then break end
+            local h2 = c2:FindFirstChild("HumanoidRootPart")
+            if not h2 then break end
+            local alpha = math.clamp((tick() - stk) / dur, 0, 1)
+            h2.CFrame = CFrame.new(startPos:Lerp(targetPos, alpha)) * startRot
+            h2.AssemblyLinearVelocity = Vector3.zero
+            h2.AssemblyAngularVelocity = Vector3.zero
+            task.wait(0.03)
+        end
+        if nc then nc:Disconnect() end
+        local c3 = LP.Character
+        if c3 then
+            local h3 = c3:FindFirstChild("HumanoidRootPart")
+            if h3 then
+                h3.CFrame = CFrame.new(targetPos) * startRot
+                h3.AssemblyLinearVelocity = Vector3.zero
+            end
+            for _, p in ipairs(c3:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = true end
+            end
+        end
+        hum.AutoRotate = oldAR
+    end)
+end
+
 local function resetC()
     pcall(function()
         local c = LP.Character
@@ -203,7 +260,6 @@ local function startSkill()
     end)
 end
 
--- FISHING LOGIC MỚI
 local function startFish()
     if LP.Character and LP.Character:FindFirstChild("Humanoid") then
         LP.Character.Humanoid.WalkSpeed = 0
@@ -211,7 +267,6 @@ local function startFish()
         resetC()
     end
     createPlat()
-
     task.spawn(function()
         while st.fish do
             pcall(function()
@@ -224,35 +279,22 @@ local function startFish()
             task.wait(0.5)
         end
     end)
-
     task.spawn(function()
         while st.fish do
-            -- Bước 1: Đợi gui câu hiện
             while not hasBtn() and st.fish do task.wait(0.05) end
             if not st.fish then break end
-
-            -- Bước 2: Đợi 0.3s rồi nhấn giữ 0.7s
             task.wait(0.3)
             clickHold(0.7)
-
-            -- Bước 3: Đợi gui câu hiện lại
             while not hasBtn() and st.fish do task.wait(0.05) end
             if not st.fish then break end
-
-            -- Bước 4: Đợi 0.3s rồi nhấn 1 cái
             task.wait(0.3)
             clickQuick()
-
-            -- Bước 5: Đợi gui câu ẩn
             while hasBtn() and st.fish do task.wait(0.05) end
             if not st.fish then break end
-
-            -- Bước 6: Đợi 1s rồi nhấn 1 cái
             task.wait(1)
             clickQuick()
         end
     end)
-
     if st.skill then startSkill() end
 end
 
@@ -287,9 +329,10 @@ local function findNPC()
 end
 
 local function doSell()
-    Library:Notify({Title="Sell",Description="Đang sync...",Time=2})
-    local s = tick()
-    while not synced and tick() - s < 1 do task.wait(0.05) end
+    if not synced then
+        local s = tick()
+        while not synced and tick() - s < 3 do task.wait(0.05) end
+    end
 
     local wasFish = st.fish
     if wasFish then st.fish = false removePlat() task.wait(0.3) end
@@ -313,8 +356,10 @@ local function doSell()
         return false
     end
 
+    -- Tele trực tiếp tới NPC
     teleTo(CFrame.new(npc.Position + Vector3.new(0, 3, 5)))
 
+    -- Gửi packet sell
     for i = 1, 5 do sendPkt("Z") task.wait(0.1) end
     task.wait(0.2)
     sendPkt("d")
@@ -323,10 +368,15 @@ local function doSell()
     task.wait(0.2)
     sendPkt("a", {0x01})
 
+    -- Tele về vị trí cũ
     task.wait(0.3)
     teleTo(oldCF)
     resetC()
     task.wait(0.3)
+
+    -- Nhấn phím 1 để cầm lại cần câu
+    sendKey(Enum.KeyCode.One)
+    task.wait(0.2)
 
     if wasFish then st.fish = true; startFish() end
     Library:Notify({Title="Sell",Description="Đã sell xong!",Time=2})
@@ -362,8 +412,11 @@ local function teleIsland(n)
     if not i then Library:Notify({Title="Teleport",Description="Không tìm thấy island_"..n,Time=3}) return end
     local sp = findSpawn(i)
     if not sp then Library:Notify({Title="Teleport",Description="Không có spawn",Time=3}) return end
-    teleTo(CFrame.new(sp.Position + Vector3.new(0, 5, 0)))
+    tweenTo(CFrame.new(sp.Position + Vector3.new(0, 5, 0)), 40)
     resetC()
+    task.wait(0.3)
+    sendKey(Enum.KeyCode.One)
+    task.wait(0.2)
     Library:Notify({Title="Teleport",Description="Đã tới island_"..n,Time=2})
 end
 
