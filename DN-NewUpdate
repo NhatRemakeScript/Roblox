@@ -1,0 +1,677 @@
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+
+local P = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local VIM = game:GetService("VirtualInputManager")
+local VU = game:GetService("VirtualUser")
+local Run = game:GetService("RunService")
+local LP = P.LocalPlayer
+local PG = LP:WaitForChild("PlayerGui")
+
+local IL = {"desert","fossil","jungle","snow","starter","volcano"}
+local SK = {Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V}
+local SF = "DNHub_Settings.json"
+local AE = "https://raw.githubusercontent.com/NhatRemakeScript/Roblox/refs/heads/main/Aoaoowbeeuua.lua"
+
+local def = {fish=false,skill=false,bypass=true,sell=false,autoSellFull=false,speed=false,fakename=false,esp=false,sellInt=300,island="starter",teleMode="fast",autoExec=false,customName=""}
+
+local function load()
+	local d = {}
+	for k,v in pairs(def) do d[k]=v end
+	if isfile and isfile(SF) then
+		local ok,c = pcall(readfile,SF)
+		if ok and c and c~="" then
+			local ok2,dec = pcall(function() return game:GetService("HttpService"):JSONDecode(c) end)
+			if ok2 and type(dec)=="table" then for k,v in pairs(dec) do if def[k]~=nil then d[k]=v end end end
+		end
+	end
+	return d
+end
+
+local sv = load()
+local st = {}
+for k in pairs(def) do st[k]=sv[k] end
+local island = sv.island or "snow"
+local sellInt = sv.sellInt or 300
+local teleMode = sv.teleMode or "fast"
+local customName = sv.customName or ""
+local plat = nil
+local uiS = {L=nil,R=nil,U=nil}
+
+local function save()
+	pcall(function() writefile(SF, game:GetService("HttpService"):JSONEncode({fish=st.fish,skill=st.skill,bypass=st.bypass,sell=st.sell,autoSellFull=st.autoSellFull,speed=st.speed,fakename=st.fakename,esp=st.esp,sellInt=sellInt,island=island,teleMode=teleMode,autoExec=st.autoExec,customName=customName})) end)
+end
+
+local Window = WindUI:CreateWindow({
+	Title = "Fishing Master-DNHUB",
+	Icon = "fish",
+	Author = "DN Team",
+	Folder = "DNHub",
+	Size = UDim2.fromOffset(700, 480),
+	Theme = "Dark",
+	Transparent = true,
+	Resizable = true,
+	HideSearchBar = false,
+	Topbar = { Height = 44, ButtonsType = "Mac" },
+	OpenButton = {
+		Title = "FM-DNHUB",
+		Icon = "fish",
+		CornerRadius = UDim.new(1, 0),
+		StrokeThickness = 2,
+		Enabled = true,
+		Draggable = true,
+		Color = ColorSequence.new(Color3.fromHex("#7D91FF"), Color3.fromHex("#A0B4FF")),
+	},
+})
+
+local MainTab = Window:Tab({ Title = "Chính", Icon = "user" })
+local TeleTab = Window:Tab({ Title = "Dịch chuyển", Icon = "map-pin" })
+local PlrTab = Window:Tab({ Title = "Người chơi", Icon = "users" })
+
+LP.Idled:Connect(function() pcall(function() VU:CaptureController() VU:ClickButton2(Vector2.new()) end) end)
+task.spawn(function() while true do pcall(function() VU:CaptureController() VU:ClickButton2(Vector2.new()) end) task.wait(30) end end)
+
+local function bp()
+	local b=LP:FindFirstChild("Backpack")
+	if not b then return -1 end
+	local c=0
+	for _,ch in ipairs(b:GetChildren()) do if not string.find(string.lower(ch.Name),"rod") then c=c+1 end end
+	return c
+end
+
+local function mkPlat()
+	pcall(function()
+		local c=LP.Character
+		if not c then return end
+		local h=c:FindFirstChild("HumanoidRootPart")
+		if not h then return end
+		if plat and plat.Parent then plat:Destroy() end
+		local p=Instance.new("Part")
+		p.Name="FishPlat"
+		p.Size=Vector3.new(15,1,15)
+		p.Position=h.Position-Vector3.new(0,3.5,0)
+		p.Anchored=true
+		p.CanCollide=true
+		p.Transparency=1
+		p.CanQuery=false
+		p.CanTouch=false
+		p.Parent=workspace
+		plat=p
+		h.CFrame=CFrame.new(p.Position+Vector3.new(0,3.5,0))*(h.CFrame-h.CFrame.Position)
+	end)
+end
+
+local function rmPlat() pcall(function() if plat and plat.Parent then plat:Destroy() end plat=nil end) end
+
+local function hasBtn()
+	local f=false
+	pcall(function()
+		for _,g in ipairs(PG:GetChildren()) do
+			if g:IsA("ScreenGui") and g.Enabled and g.Name=="Rod" then
+				for _,d in ipairs(g:GetDescendants()) do
+					if d.Name=="FishingActionButton" and d:IsA("ImageButton") and d.Visible then f=true end
+				end
+			end
+		end
+	end)
+	return f
+end
+
+local function cHold(d)
+	pcall(function()
+		local v=workspace.CurrentCamera.ViewportSize
+		VIM:SendMouseButtonEvent(v.X/2,v.Y/2,0,true,game,0)
+		task.wait(d or 0.7)
+		VIM:SendMouseButtonEvent(v.X/2,v.Y/2,0,false,game,0)
+	end)
+end
+
+local function cQuick()
+	pcall(function()
+		local v=workspace.CurrentCamera.ViewportSize
+		VIM:SendMouseButtonEvent(v.X/2,v.Y/2,0,true,game,0)
+		task.wait(0.02)
+		VIM:SendMouseButtonEvent(v.X/2,v.Y/2,0,false,game,0)
+	end)
+end
+
+local function sKey(k)
+	pcall(function()
+		VIM:SendKeyEvent(true,k,false,game)
+		task.wait(0.05)
+		VIM:SendKeyEvent(false,k,false,game)
+	end)
+end
+
+local function vis(i)
+	if not i.Visible or i.AbsoluteSize.X<=0 or i.AbsoluteSize.Y<=0 then return false end
+	local p=i.Parent
+	while p and p~=game do
+		if p:IsA("ScreenGui") and not p.Enabled then return false end
+		if p:IsA("GuiObject") and (not p.Visible or p.AbsoluteSize.X<=0 or p.AbsoluteSize.Y<=0) then return false end
+		if p:IsA("CanvasGroup") and p.GroupTransparency>=1 then return false end
+		p=p.Parent
+	end
+	return true
+end
+
+local function scanMini()
+	local tg
+	for _,g in ipairs(PG:GetChildren()) do if g:IsA("ScreenGui") and g.Name=="ReelCounterGui" then tg=g break end end
+	if not tg then return end
+	local f={L=false,R=false,U=false}
+	pcall(function()
+		for _,d in ipairs(tg:GetDescendants()) do
+			if d:IsA("GuiObject") and vis(d) then
+				if d.Name=="Left" then f.L=true
+				elseif d.Name=="Right" then f.R=true
+				elseif d.Name=="Up" then f.U=true end
+			end
+		end
+	end)
+	local n=tick()
+	if f.L then if not uiS.L then uiS.L=n end if n-uiS.L>=0.2 then sKey(Enum.KeyCode.A) uiS.L=nil end else uiS.L=nil end
+	if f.R then if not uiS.R then uiS.R=n end if n-uiS.R>=0.2 then sKey(Enum.KeyCode.D) uiS.R=nil end else uiS.R=nil end
+	if f.U then if not uiS.U then uiS.U=n end if n-uiS.U>=0.2 then sKey(Enum.KeyCode.W) uiS.U=nil end else uiS.U=nil end
+end
+
+local function startBypass() task.spawn(function() while st.bypass do scanMini() task.wait(0.05) end end) end
+
+local function sState()
+	local c=LP.Character
+	if not c then return nil end
+	local h=c:FindFirstChild("HumanoidRootPart")
+	local hu=c:FindFirstChildOfClass("Humanoid")
+	if not h or not hu then return nil end
+	local s={cframe=h.CFrame,vel=h.AssemblyLinearVelocity,ang=h.AssemblyAngularVelocity,rv=h.RotVelocity,ar=hu.AutoRotate,ps=hu.PlatformStand,ws=hu.WalkSpeed,jp=hu.JumpPower,hs=hu:GetState(),cc={}}
+	for _,p in ipairs(c:GetDescendants()) do if p:IsA("BasePart") then s.cc[p]=p.CanCollide end end
+	return s
+end
+
+local function rState(s)
+	if not s then return end
+	local c=LP.Character
+	if not c then return end
+	local h=c:FindFirstChild("HumanoidRootPart")
+	local hu=c:FindFirstChildOfClass("Humanoid")
+	if not h or not hu then return end
+	h.CFrame=s.cframe
+	h.AssemblyLinearVelocity=s.vel
+	h.AssemblyAngularVelocity=s.ang
+	h.RotVelocity=s.rv
+	hu.AutoRotate=s.ar
+	hu.PlatformStand=s.ps
+	hu.WalkSpeed=s.ws
+	hu.JumpPower=s.jp
+	pcall(function() hu:ChangeState(s.hs) end)
+	for p,cc in pairs(s.cc) do if p and p.Parent then p.CanCollide=cc end end
+end
+
+local function tSpeed() return teleMode=="fast" and 100 or 40 end
+
+local function tweenTo(cf, spd)
+	spd=spd or tSpeed()
+	pcall(function()
+		local c=LP.Character
+		if not c then return end
+		local h=c:FindFirstChild("HumanoidRootPart")
+		local hu=c:FindFirstChildOfClass("Humanoid")
+		if not h or not hu then return end
+		local sv=sState()
+		hu.AutoRotate=false
+		hu.PlatformStand=true
+		hu:ChangeState(Enum.HumanoidStateType.Physics)
+		local sCF=h.CFrame
+		local sR=sCF-sCF.Position
+		local sP=sCF.Position
+		local tP=cf.Position
+		local d=(tP-sP).Magnitude
+		if d<1 then
+			h.CFrame=CFrame.new(tP)*sR
+			if sv then sv.cframe=CFrame.new(tP)*sR sv.vel=Vector3.zero sv.ang=Vector3.zero sv.rv=Vector3.zero end
+			rState(sv)
+			return
+		end
+		local nc
+		nc=Run.Stepped:Connect(function()
+			if c then for _,p in ipairs(c:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end
+		end)
+		local dur=d/spd
+		local stk=tick()
+		while tick()-stk<dur do
+			local c2=LP.Character
+			if not c2 then break end
+			local h2=c2:FindFirstChild("HumanoidRootPart")
+			if not h2 then break end
+			local a=math.clamp((tick()-stk)/dur,0,1)
+			h2.CFrame=CFrame.new(sP:Lerp(tP,a))*sR
+			h2.AssemblyLinearVelocity=Vector3.zero
+			h2.AssemblyAngularVelocity=Vector3.zero
+			h2.RotVelocity=Vector3.zero
+			task.wait(0.03)
+		end
+		if nc then nc:Disconnect() end
+		local c3=LP.Character
+		if c3 then local h3=c3:FindFirstChild("HumanoidRootPart") if h3 then h3.CFrame=CFrame.new(tP)*sR end end
+		if sv then sv.cframe=CFrame.new(tP)*sR sv.vel=Vector3.zero sv.ang=Vector3.zero sv.rv=Vector3.zero end
+		rState(sv)
+	end)
+end
+
+local function eqRod()
+	pcall(function()
+		local ch=LP.Character
+		if not ch then return end
+		local hu=ch:FindFirstChildOfClass("Humanoid")
+		local b=LP:FindFirstChild("Backpack")
+		if not hu or not b then return end
+		local cur=ch:FindFirstChildOfClass("Tool")
+		if cur and string.find(string.lower(cur.Name),"rod") then return end
+		for _,t in ipairs(b:GetChildren()) do
+			if t:IsA("Tool") and string.find(string.lower(t.Name),"rod") then hu:EquipTool(t) return end
+		end
+	end)
+end
+
+local skillT
+local function startSkill()
+	if skillT then task.cancel(skillT) skillT=nil end
+	skillT=task.spawn(function()
+		while st.fish and st.skill do
+			for _,k in ipairs(SK) do
+				if not (st.fish and st.skill) then break end
+				sKey(k)
+			end
+			task.wait(0.2)
+		end
+		skillT=nil
+	end)
+end
+
+local function startFish()
+	if LP.Character and LP.Character:FindFirstChild("Humanoid") then
+		LP.Character.Humanoid.WalkSpeed=0
+		LP.Character.Humanoid.JumpPower=0
+	end
+	eqRod()
+	mkPlat()
+	task.spawn(function()
+		while st.fish do
+			pcall(function()
+				local c=LP.Character
+				if c and plat and plat.Parent then
+					local h=c:FindFirstChild("HumanoidRootPart")
+					if h then plat.Position=Vector3.new(h.Position.X,plat.Position.Y,h.Position.Z) end
+				end
+			end)
+			task.wait(0.5)
+		end
+	end)
+	task.spawn(function()
+		while st.fish do
+			while not hasBtn() and st.fish do task.wait(0.05) end
+			if not st.fish then break end
+			task.wait(0.3)
+			cHold(0.7)
+			while not hasBtn() and st.fish do task.wait(0.05) end
+			if not st.fish then break end
+			task.wait(0.3)
+			cQuick()
+			while hasBtn() and st.fish do task.wait(0.05) end
+			if not st.fish then break end
+			task.wait(1)
+			cQuick()
+		end
+	end)
+	if st.skill then startSkill() end
+end
+
+local function stopFish()
+	rmPlat()
+	pcall(function()
+		local c=LP.Character
+		if not c then return end
+		local h=c:FindFirstChildOfClass("Humanoid")
+		if h then h.WalkSpeed=st.speed and 40 or 16 h.JumpPower=50 end
+	end)
+end
+
+local function findNPC()
+	local c=LP.Character
+	if not c or not c:FindFirstChild("HumanoidRootPart") then return nil end
+	local mp=c.HumanoidRootPart.Position
+	local best,bd=nil,math.huge
+	for _,o in ipairs(workspace:GetDescendants()) do
+		local n=string.lower(o.Name)
+		if string.find(n,"seller") or string.find(n,"fish_seller") or string.find(n,"fishseller") then
+			local p
+			if o:IsA("Model") then p=o.PrimaryPart or o:FindFirstChildWhichIsA("BasePart")
+			elseif o:IsA("BasePart") then p=o end
+			if p then
+				local d=(mp-p.Position).Magnitude
+				if d<bd then bd=d best=p end
+			end
+		end
+	end
+	return best
+end
+
+local function doSell()
+	local wf=st.fish
+	if wf then st.fish=false rmPlat() task.wait(0.3) end
+	local c=LP.Character
+	if not c or not c:FindFirstChild("HumanoidRootPart") then
+		if wf then st.fish=true startFish() end
+		return false
+	end
+	local oldCF=c.HumanoidRootPart.CFrame
+	local npc=findNPC()
+	if not npc then
+		WindUI:Notify({Title="Sell",Content="Không tìm thấy NPC",Duration=3})
+		if wf then st.fish=true startFish() end
+		return false
+	end
+	tweenTo(CFrame.new(npc.Position+Vector3.new(0,3,5)),40)
+	task.wait(0.5)
+	local synced,cnt=false,0
+	local pkt=RS:FindFirstChild("Stardust") and RS.Stardust:FindFirstChild("Packages") and RS.Stardust.Packages:FindFirstChild("Packet") and RS.Stardust.Packages.Packet:FindFirstChild("RemoteEvent")
+	if pkt and getrawmetatable and setreadonly and newcclosure then
+		pcall(function()
+			local mt=getrawmetatable(pkt)
+			if not mt then return end
+			local old=mt.__namecall
+			setreadonly(mt,false)
+			mt.__namecall=newcclosure(function(self,...)
+				if self==pkt and getnamecallmethod()=="FireServer" then
+					for _,v in ipairs({...}) do
+						if typeof(v)=="buffer" and buffer.len(v)>=2 then cnt=buffer.readu8(v,1) synced=true end
+					end
+				end
+				return old(self,...)
+			end)
+			setreadonly(mt,true)
+		end)
+		local t0=tick()
+		while not synced and tick()-t0<5 do task.wait(0.05) end
+	end
+	if not synced then
+		cnt=math.random(0,255)
+	end
+	local function sp(op,pl)
+		cnt=(cnt+1)%256
+		if type(buffer)=="table" then
+			local b=buffer.create(2+(pl and #pl or 0))
+			buffer.writeu8(b,0,string.byte(op))
+			buffer.writeu8(b,1,cnt)
+			if pl then for i=1,#pl do buffer.writeu8(b,1+i,pl[i]) end end
+			pcall(function() pkt:FireServer(b) end)
+		else
+			local s=string.char(string.byte(op),cnt)
+			if pl then for i=1,#pl do s=s..string.char(pl[i]) end end
+			pcall(function() pkt:FireServer(s) end)
+		end
+	end
+	WindUI:Notify({Title="Sell",Content="Đang bán cá",Duration=2})
+	sp("c",{0x41}) task.wait(0.2)
+	sp("c",{0x42,0x01}) task.wait(0.2)
+	sp("c",{0x43}) task.wait(0.2)
+	sp("f",{0x4A}) task.wait(0.2)
+	sp("c",{0x4B}) task.wait(0.2)
+	sp("\\",{0x4C}) task.wait(0.2)
+	sp("c",{0x4D,0x01}) task.wait(0.2)
+	sp("c",{0x4E}) task.wait(0.5)
+	WindUI:Notify({Title="Sell",Content="Đang quay về...",Duration=2})
+	tweenTo(oldCF,40)
+	task.wait(0.3)
+	eqRod()
+	task.wait(0.2)
+	if wf then st.fish=true startFish() end
+	WindUI:Notify({Title="Sell",Content="Bán xong!",Duration=3})
+	return true
+end
+
+local function startSell()
+	task.spawn(function()
+		while st.sell do
+			for i=sellInt,1,-1 do if not st.sell then break end task.wait(1) end
+			if not st.sell then break end
+			doSell()
+			task.wait(1)
+		end
+	end)
+end
+
+local function startAutoFull()
+	task.spawn(function()
+		while st.autoSellFull do
+			if bp()>=50 then
+				WindUI:Notify({Title="Sell",Content="Kho đầy, đang bán...",Duration=2})
+				doSell()
+				task.wait(2)
+			end
+			task.wait(2)
+		end
+	end)
+end
+
+local function findIsland(n)
+	local t="island_"..n
+	for _,o in ipairs(workspace:GetDescendants()) do if string.lower(o.Name)==t then return o end end
+end
+
+local function findSpawn(i)
+	if not i then return nil end
+	for _,d in ipairs(i:GetDescendants()) do if d:IsA("SpawnLocation") then return d end end
+	for _,d in ipairs(i:GetDescendants()) do if d:IsA("BasePart") and string.find(string.lower(d.Name),"spawn") then return d end end
+	if i:IsA("Model") and i.PrimaryPart then return i.PrimaryPart end
+	for _,d in ipairs(i:GetChildren()) do if d:IsA("BasePart") then return d end end
+end
+
+local function teleIsland(n)
+	local i=findIsland(n)
+	if not i then WindUI:Notify({Title="Tele",Content="Không tìm thấy island_"..n,Duration=3}) return end
+	local sp2=findSpawn(i)
+	if not sp2 then WindUI:Notify({Title="Tele",Content="Không có spawn",Duration=3}) return end
+	tweenTo(CFrame.new(sp2.Position+Vector3.new(0,5,0)))
+	task.wait(0.3)
+	eqRod()
+	task.wait(0.2)
+	WindUI:Notify({Title="Tele",Content="Đã tới "..n,Duration=2})
+end
+
+local espF,espC
+local function clearESP()
+	if espF then pcall(function() espF:Destroy() end) espF=nil end
+	if espC then pcall(function() espC:Disconnect() end) espC=nil end
+end
+
+local function startESP()
+	clearESP()
+	espF=Instance.new("Folder")
+	espF.Name="DNHub_ESP"
+	espF.Parent=workspace
+	for _,name in ipairs(IL) do
+		local isl=findIsland(name)
+		if isl then
+			local part=findSpawn(isl)
+			if part then
+				local box=Instance.new("BoxHandleAdornment")
+				box.Size=Vector3.new(20,20,20)
+				box.Adornee=part
+				box.AlwaysOnTop=true
+				box.ZIndex=5
+				box.Transparency=0.5
+				box.Color3=Color3.fromRGB(0,255,200)
+				box.Parent=espF
+				local lb=Instance.new("BillboardGui")
+				lb.Size=UDim2.new(0,200,0,30)
+				lb.StudsOffset=Vector3.new(0,15,0)
+				lb.AlwaysOnTop=true
+				lb.Adornee=part
+				lb.Parent=espF
+				local tx=Instance.new("TextLabel")
+				tx.Size=UDim2.new(1,0,1,0)
+				tx.BackgroundTransparency=1
+				tx.Text=isl.Name
+				tx.TextColor3=Color3.fromRGB(0,255,200)
+				tx.TextStrokeTransparency=0
+				tx.TextSize=14
+				tx.Font=Enum.Font.GothamBold
+				tx.Parent=lb
+			end
+		end
+	end
+	espC=Run.Heartbeat:Connect(function()
+		if not st.esp then return end
+		for _,b in ipairs(espF:GetChildren()) do
+			if b:IsA("BoxHandleAdornment") and not b.Adornee then b:Destroy() end
+		end
+	end)
+end
+
+local function stopESP() clearESP() end
+
+local fnR=false
+local fnC={}
+local tag=nil
+
+local function hideName()
+	pcall(function()
+		local rn=LP.Name
+		local function sc(c)
+			for _,o in ipairs(c:GetDescendants()) do
+				if o:IsA("TextLabel") and (o.Text==rn or o.Text=="@"..rn) then
+					if not fnC[o] then fnC[o]={t=o.Text,v=o.Visible,tr=o.TextTransparency} end
+					o.Text="" o.Visible=false o.TextTransparency=1
+				end
+			end
+		end
+		sc(workspace)
+		for _,g in ipairs(PG:GetChildren()) do if g:IsA("ScreenGui") then sc(g) end end
+	end)
+end
+
+local function restoreName()
+	for o,d in pairs(fnC) do
+		pcall(function()
+			if o and o.Parent then o.Text=d.t o.Visible=d.v o.TextTransparency=d.tr end
+		end)
+	end
+	fnC={}
+end
+
+local function mkTag()
+	pcall(function()
+		local ch=LP.Character
+		if not ch then return end
+		local hd=ch:FindFirstChild("Head")
+		if not hd then return end
+		if tag then tag:Destroy() tag=nil end
+		local tx=customName~="" and customName or LP.Name
+		local bb=Instance.new("BillboardGui")
+		bb.Size=UDim2.new(0,200,0,50)
+		bb.StudsOffset=Vector3.new(0,3,0)
+		bb.AlwaysOnTop=true
+		bb.Adornee=hd
+		bb.Parent=hd
+		local lb=Instance.new("TextLabel")
+		lb.Size=UDim2.new(1,0,1,0)
+		lb.BackgroundTransparency=1
+		lb.Text=tx
+		lb.TextColor3=Color3.fromRGB(180,100,255)
+		lb.TextStrokeColor3=Color3.fromRGB(60,20,100)
+		lb.TextStrokeTransparency=0
+		lb.TextScaled=true
+		lb.Font=Enum.Font.GothamBold
+		lb.Parent=bb
+		tag=bb
+	end)
+end
+
+local function rmTag()
+	if tag then pcall(function() tag:Destroy() end) tag=nil end
+end
+
+local function startFake()
+	if fnR then return end
+	fnR=true
+	task.spawn(function()
+		while st.fakename do
+			hideName()
+			if not tag or not tag.Parent then mkTag() end
+			task.wait(0.3)
+		end
+		fnR=false
+	end)
+end
+
+local function stopFake()
+	restoreName()
+	rmTag()
+end
+
+local MGSection = MainTab:Section({ Title = "Tự động" })
+MGSection:Toggle({ Title = "Tự động câu", Default = st.fish, Callback = function(v) st.fish=v if v then startFish() else stopFish() end save() end })
+MGSection:Toggle({ Title = "Tự động kỹ năng", Default = st.skill, Callback = function(v) st.skill=v if v and st.fish then startSkill() end save() end })
+MGSection:Toggle({ Title = "Vượt Minigame", Default = st.bypass, Callback = function(v) st.bypass=v if v then startBypass() end save() end })
+
+local SG2Section = MainTab:Section({ Title = "Bán cá" })
+SG2Section:Toggle({ Title = "Tự động bán", Default = st.sell, Callback = function(v) st.sell=v if v then startSell() end save() end })
+SG2Section:Toggle({ Title = "Bán nếu đầy kho", Default = st.autoSellFull, Callback = function(v) st.autoSellFull=v if v then startAutoFull() end save() end })
+SG2Section:Slider({ Title = "Thời gian (giây)", Value = { Min = 30, Max = 3600, Default = sellInt }, Step = 1, Callback = function(v) sellInt=v save() end })
+SG2Section:Button({ Title = "BÁN NGAY", Callback = function() task.spawn(doSell) end })
+
+local TGSection = TeleTab:Section({ Title = "Đảo" })
+TGSection:Dropdown({ Title = "Chọn đảo", Values = IL, Value = island, Callback = function(v) island=v save() end })
+TGSection:Button({ Title = "DỊCH CHUYỂN", Callback = function() teleIsland(island) end })
+TGSection:Toggle({ Title = "ESP Đảo", Default = st.esp, Callback = function(v) st.esp=v if v then startESP() else stopESP() end save() end })
+
+local PG2Section = PlrTab:Section({ Title = "Người chơi" })
+PG2Section:Toggle({ Title = "Tốc độ (40)", Default = st.speed, Callback = function(v) st.speed=v if LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid.WalkSpeed=v and 40 or 16 end save() end })
+PG2Section:Toggle({ Title = "Fake Name", Default = st.fakename, Callback = function(v) st.fakename=v if v then startFake() mkTag() else stopFake() end save() end })
+PG2Section:Input({ Title = "Tên tùy chỉnh", Value = customName, Placeholder = "Nhập tên...", Callback = function(v) customName=v save() if st.fakename and tag then pcall(function() tag:Destroy() end) tag=nil mkTag() end end })
+PG2Section:Button({ Title = "Tắt Menu", Callback = function()
+	st.fish=false st.bypass=false st.skill=false st.sell=false st.speed=false st.fakename=false st.autoSellFull=false st.esp=false
+	rmPlat() stopESP()
+	if skillT then task.cancel(skillT) skillT=nil end
+	stopFake()
+	if LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid.WalkSpeed=16 LP.Character.Humanoid.JumpPower=50 end
+	save()
+	Window:Destroy()
+end })
+
+local SysSection = PlrTab:Section({ Title = "Hệ thống" })
+SysSection:Dropdown({ Title = "Chế độ dịch chuyển", Values = {"Nhanh (100)","Bình thường (40)"}, Value = teleMode=="fast" and "Nhanh (100)" or "Bình thường (40)", Callback = function(v) teleMode=v=="Nhanh (100)" and "fast" or "normal" save() end })
+SysSection:Toggle({ Title = "Auto Execute", Default = st.autoExec, Callback = function(v) st.autoExec=v save() end })
+SysSection:Button({ Title = "Lưu cài đặt", Callback = function() save() WindUI:Notify({Title="Config",Content="Đã lưu!",Duration=2}) end })
+SysSection:Button({ Title = "Tải cài đặt", Callback = function()
+	local s=load()
+	for k,v in pairs(s) do if st[k]~=nil then st[k]=v end end
+	island=s.island or "snow"
+	sellInt=s.sellInt or 300
+	teleMode=s.teleMode or "fast"
+	customName=s.customName or ""
+	WindUI:Notify({Title="Config",Content="Đã tải! Reset để áp dụng.",Duration=3})
+end })
+
+task.spawn(function()
+	task.wait(2)
+	if st.bypass then startBypass() end
+	if st.fish then startFish() end
+	if st.sell then startSell() end
+	if st.autoSellFull then startAutoFull() end
+	if st.fakename then startFake() mkTag() end
+	if st.esp then startESP() end
+	if st.speed and LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid.WalkSpeed=40 end
+	if st.autoExec then pcall(function() loadstring(game:HttpGet(AE))() end) end
+end)
+
+LP.CharacterAdded:Connect(function(c)
+	c:WaitForChild("Humanoid")
+	task.wait(0.5)
+	if st.speed then c.Humanoid.WalkSpeed=40 end
+	if st.fish then startFish() end
+	if st.fakename then task.wait(0.5) mkTag() end
+end)
+
+WindUI:Notify({ Title = "FM-DNHUB", Content = "Đã load thành công!", Duration = 5 })
