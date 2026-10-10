@@ -124,6 +124,7 @@ function Library.new(cfg)
     self.Config = cfg
     self.Tabs = {}
     self.Flags = {}
+    self.Connections = {}
     self.ToggleKey = cfg.ToggleKey or Enum.KeyCode.RightShift
     self.Open = true
     self.IsMobile = isMobile
@@ -161,7 +162,7 @@ function Library:Build()
         BorderSizePixel = 0,
     }, main)
     corner(titleBar, 14)
-    local titleCover = mk("Frame", {
+    mk("Frame", {
         Size = UDim2.new(1, 0, 0, 20),
         Position = UDim2.new(0, 0, 1, -20),
         BackgroundColor3 = C.BgMain,
@@ -259,7 +260,7 @@ function Library:Build()
         ScrollingDirection = Enum.ScrollingDirection.X,
         Visible = isMobile,
     }, main)
-    local mtl = mk("UIListLayout", {Padding = UDim.new(0, 6), FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder}, mobileTabBar)
+    mk("UIListLayout", {Padding = UDim.new(0, 6), FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder}, mobileTabBar)
     self.MobileTabBar = mobileTabBar
 
     local contentTop = isMobile and 88 or 46
@@ -306,12 +307,21 @@ function Library:Build()
     mk("UIListLayout", {Padding = UDim.new(0, 8), VerticalAlignment = Enum.VerticalAlignment.Top, SortOrder = Enum.SortOrder.LayoutOrder}, self.NotifyHolder)
     mk("UIPadding", {PaddingTop = UDim.new(0, 20)}, self.NotifyHolder)
 
-    UserInputService.InputBegan:Connect(function(input, gpe)
+    self.KeybindConn = UserInputService.InputBegan:Connect(function(input, gpe)
         if gpe then return end
+        if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if input.KeyCode == self.ToggleKey then
             self:Toggle(not self.Open)
+            if self.Open and self.FloatingCol then
+                self.FloatingCol:Destroy()
+                self.FloatingCol = nil
+            end
+            if not self.Open then
+                self:ShowFloating()
+            end
         end
     end)
+    table.insert(self.Connections, self.KeybindConn)
 end
 
 function Library:Toggle(state)
@@ -352,6 +362,42 @@ function Library:ShowFloating()
         self:Toggle(true)
     end)
     self.FloatingCol = col
+end
+
+function Library:SetToggleKey(keyCode)
+    if typeof(keyCode) ~= "EnumItem" then return end
+    self.ToggleKey = keyCode
+    if self.Config then self.Config.ToggleKey = keyCode end
+end
+
+function Library:GetToggleKey()
+    return self.ToggleKey
+end
+
+function Library:BindKey(element, keyCode, mode)
+    mode = mode or "Toggle"
+    if typeof(keyCode) ~= "EnumItem" then return end
+    local conn = UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+        if input.KeyCode == keyCode then
+            if mode == "Toggle" and element.Set and element.Get then
+                element.Set(not element.Get())
+            elseif mode == "Press" and element.Frame then
+                local btn = element.Frame:FindFirstChildOfClass("TextButton")
+                if btn then
+                    for _, c in ipairs(btn:GetChildren()) do
+                        if c:IsA("TextButton") then
+                            c:Fire("MouseButton1Click")
+                        end
+                    end
+                    btn:Fire("MouseButton1Click")
+                end
+            end
+        end
+    end)
+    table.insert(self.Connections, conn)
+    return conn
 end
 
 function Library:Notify(cfg)
@@ -548,7 +594,7 @@ function Library:MakeButton(parent, cfg)
         click()
         if cfg.Callback then pcall(cfg.Callback) end
     end)
-    return btn
+    return {Frame = btn, Set = nil, Get = nil, Button = btn}
 end
 
 function Library:MakeToggle(parent, cfg)
@@ -612,7 +658,7 @@ function Library:MakeToggle(parent, cfg)
     end)
 
     if flag then self.Flags[flag] = state end
-    return {Set = setState, Get = function() return state end, Frame = f}
+    return {Frame = f, Set = setState, Get = function() return state end, Switch = switch, Hit = hit}
 end
 
 function Library:MakeSlider(parent, cfg)
@@ -714,7 +760,7 @@ function Library:MakeSlider(parent, cfg)
     end)
 
     if flag then self.Flags[flag] = val end
-    return {Set = function(v) val = v; valLbl.Text = tostring(v) end, Get = function() return val end}
+    return {Frame = f, Set = function(v) val = v; valLbl.Text = tostring(v); local r = (v - min) / (max - min); fill.Size = UDim2.new(r, 0, 1, 0); knob.Position = UDim2.new(r, -7, 0.5, -7) end, Get = function() return val end}
 end
 
 function Library:MakeInput(parent, cfg)
@@ -749,13 +795,12 @@ function Library:MakeInput(parent, cfg)
         tw(s, 0.15, {Transparency = 0.7})
         if cfg.Callback then pcall(cfg.Callback, box.Text) end
     end)
-    return box
+    return {Frame = f, Box = box, Set = function(v) box.Text = v end, Get = function() return box.Text end}
 end
 
 function Library:MakeDropdown(parent, cfg)
     local options = cfg.Options or {}
-    local multi = cfg.Multi or false
-    local selected = cfg.Default or (multi and {} or (options[1] or ""))
+    local multi = cfg.Multi or false    local selected = cfg.Default or (multi and {} or (options[1] or ""))
     local open = false
     local flag = cfg.Flag
 
@@ -877,7 +922,7 @@ function Library:MakeDropdown(parent, cfg)
     end)
 
     refreshVal()
-    return {Set = function(v) selected = v; refreshVal() end, Get = function() return selected end}
+    return {Frame = f, Set = function(v) selected = v; refreshVal() end, Get = function() return selected end}
 end
 
 return Library
