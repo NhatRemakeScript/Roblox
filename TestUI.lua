@@ -25,7 +25,8 @@ local C = {
 }
 
 local function guiParent()
-    if gethui then return gethui() end
+    local ok, hui = pcall(function() return gethui and gethui() end)
+    if ok and hui then return hui end
     if CoreGui then return CoreGui end
     return LocalPlayer:WaitForChild("PlayerGui")
 end
@@ -114,7 +115,9 @@ local function click()
     end)
 end
 
-local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local isMobile = UserInputService.TouchEnabled
+    and not UserInputService.KeyboardEnabled
+    and not UserInputService.MouseEnabled
 
 local W_W, W_H = isMobile and 340 or 600, isMobile and 420 or 400
 
@@ -128,7 +131,10 @@ function Library.new(cfg)
     self.ToggleKey = cfg.ToggleKey or Enum.KeyCode.RightShift
     self.Open = true
     self.IsMobile = isMobile
-    self:Build()
+    local ok, err = pcall(function() self:Build() end)
+    if not ok then
+        warn("[DN UI] Build error: " .. tostring(err))
+    end
     return self
 end
 
@@ -138,7 +144,12 @@ function Library:Build()
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         IgnoreGuiInset = true,
+        Enabled = true,
+        DisplayOrder = 999,
     }, guiParent())
+    if not gui.Parent then
+        gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end
     self.Gui = gui
 
     local main = mk("Frame", {
@@ -149,6 +160,7 @@ function Library:Build()
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Active = true,
+        Visible = true,
     }, gui)
     corner(main, 14)
     grad(main, C.BgMain, Color3.fromRGB(24, 16, 48), 90)
@@ -326,14 +338,14 @@ end
 
 function Library:Toggle(state)
     self.Open = state
-    if state then
-        self.Main.Visible = true
-        self.Main.Size = UDim2.new(0, W_W, 0, W_H)
-        self.Main.Position = UDim2.new(0.5, -W_W/2, 0.5, -W_H/2)
-        if self.MobileBtn then self.MobileBtn.Visible = false end
-    else
-        self.Main.Visible = false
+    if self.Main then
+        self.Main.Visible = state
+        if state then
+            self.Main.Size = UDim2.new(0, W_W, 0, W_H)
+            self.Main.Position = UDim2.new(0.5, -W_W/2, 0.5, -W_H/2)
+        end
     end
+    if self.MobileBtn then self.MobileBtn.Visible = false end
 end
 
 function Library:ShowFloating()
@@ -383,16 +395,8 @@ function Library:BindKey(element, keyCode, mode)
         if input.KeyCode == keyCode then
             if mode == "Toggle" and element.Set and element.Get then
                 element.Set(not element.Get())
-            elseif mode == "Press" and element.Frame then
-                local btn = element.Frame:FindFirstChildOfClass("TextButton")
-                if btn then
-                    for _, c in ipairs(btn:GetChildren()) do
-                        if c:IsA("TextButton") then
-                            c:Fire("MouseButton1Click")
-                        end
-                    end
-                    btn:Fire("MouseButton1Click")
-                end
+            elseif mode == "Press" and element.Button then
+                element.Button:Fire("MouseButton1Click")
             end
         end
     end)
@@ -594,7 +598,7 @@ function Library:MakeButton(parent, cfg)
         click()
         if cfg.Callback then pcall(cfg.Callback) end
     end)
-    return {Frame = btn, Set = nil, Get = nil, Button = btn}
+    return {Frame = btn, Button = btn}
 end
 
 function Library:MakeToggle(parent, cfg)
@@ -658,7 +662,7 @@ function Library:MakeToggle(parent, cfg)
     end)
 
     if flag then self.Flags[flag] = state end
-    return {Frame = f, Set = setState, Get = function() return state end, Switch = switch, Hit = hit}
+    return {Frame = f, Set = setState, Get = function() return state end}
 end
 
 function Library:MakeSlider(parent, cfg)
@@ -760,7 +764,17 @@ function Library:MakeSlider(parent, cfg)
     end)
 
     if flag then self.Flags[flag] = val end
-    return {Frame = f, Set = function(v) val = v; valLbl.Text = tostring(v); local r = (v - min) / (max - min); fill.Size = UDim2.new(r, 0, 1, 0); knob.Position = UDim2.new(r, -7, 0.5, -7) end, Get = function() return val end}
+    return {
+        Frame = f,
+        Set = function(v)
+            val = v
+            valLbl.Text = tostring(v)
+            local r = (v - min) / (max - min)
+            fill.Size = UDim2.new(r, 0, 1, 0)
+            knob.Position = UDim2.new(r, -7, 0.5, -7)
+        end,
+        Get = function() return val end
+    }
 end
 
 function Library:MakeInput(parent, cfg)
@@ -800,7 +814,8 @@ end
 
 function Library:MakeDropdown(parent, cfg)
     local options = cfg.Options or {}
-    local multi = cfg.Multi or false    local selected = cfg.Default or (multi and {} or (options[1] or ""))
+    local multi = cfg.Multi or false
+    local selected = cfg.Default or (multi and {} or (options[1] or ""))
     local open = false
     local flag = cfg.Flag
 
