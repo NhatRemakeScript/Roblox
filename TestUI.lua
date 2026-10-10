@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 local C = {
@@ -128,14 +129,71 @@ function Library.new(cfg)
     self.Tabs = {}
     self.Flags = {}
     self.Connections = {}
+    self.Themes = {}
     self.ToggleKey = cfg.ToggleKey or Enum.KeyCode.RightShift
     self.Open = true
     self.IsMobile = isMobile
+    self.ConfigManager = self:CreateConfigManager(cfg)
     local ok, err = pcall(function() self:Build() end)
     if not ok then
         warn("[DN UI] Build error: " .. tostring(err))
     end
     return self
+end
+
+function Library:CreateConfigManager(cfg)
+    local path = (cfg.Folder or "DN_UI") .. "/"
+    local manager = {
+        Path = path,
+        _configs = {},
+    }
+    function manager:AllConfigs()
+        local list = {}
+        local ok = pcall(function()
+            if type(listfiles) == "function" and type(isfolder) == "function" and isfolder(path) then
+                for _, f in ipairs(listfiles(path)) do
+                    local name = f:match("([^/\\]+)%.json$")
+                    if name then table.insert(list, name) end
+                end
+            end
+        end)
+        if not ok then return {} end
+        return list
+    end
+    function manager:Save(name, data)
+        pcall(function()
+            if type(makefolder) == "function" and type(isfolder) == "function" and not isfolder(path) then
+                makefolder(path)
+            end
+            if type(writefile) == "function" then
+                writefile(path .. name .. ".json", HttpService:JSONEncode(data))
+            end
+        end)
+    end
+    function manager:Load(name)
+        local ok, result = pcall(function()
+            if type(readfile) == "function" and type(isfile) == "function" and isfile(path .. name .. ".json") then
+                return HttpService:JSONDecode(readfile(path .. name .. ".json"))
+            end
+        end)
+        return ok and result or nil
+    end
+    function manager:Delete(name)
+        pcall(function()
+            if type(delfile) == "function" and type(isfile) == "function" and isfile(path .. name .. ".json") then
+                delfile(path .. name .. ".json")
+            end
+        end)
+    end
+    manager.Parser = setmetatable({}, {
+        __index = function()
+            return {
+                Save = function(flag) return flag.Value end,
+                Load = function(flag, value) if flag.Set then flag.Set(value) end end,
+            }
+        end,
+    })
+    return manager
 end
 
 function Library:Build()
@@ -151,6 +209,10 @@ function Library:Build()
         gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     end
     self.Gui = gui
+    self.ScreenGui = gui
+    self.NotificationGui = gui
+    self.DropdownGui = gui
+    self.TooltipGui = gui
 
     local main = mk("Frame", {
         Name = "Main",
@@ -192,6 +254,14 @@ function Library:Build()
         TextXAlignment = Enum.TextXAlignment.Left,
     }, titleBar)
     grad(title, C.Accent2, C.Accent, 0)
+    self.TitleLabel = title
+
+    local tagHolder = mk("Frame", {
+        Size = UDim2.new(0, 100, 0, 20),
+        Position = UDim2.new(0.6, 0, 0.5, -10),
+        BackgroundTransparency = 1,
+    }, titleBar)
+    self.TagHolder = tagHolder
 
     local closeBtn = mk("TextButton", {
         Size = UDim2.new(0, 32, 0, 32),
@@ -336,6 +406,59 @@ function Library:Build()
     table.insert(self.Connections, self.KeybindConn)
 end
 
+function Library:CreateWindow(cfg)
+    return Library.new(cfg)
+end
+
+function Library:AddTheme(cfg)
+    if type(cfg) == "table" and cfg.Name then
+        self.Themes[cfg.Name] = cfg
+    end
+    return self
+end
+
+function Library:SetTheme(name)
+    return self
+end
+
+function Library:SetBackgroundImage(url)
+    return self
+end
+
+function Library:Tag(cfg)
+    if not self.TagHolder then return end
+    local t = mk("TextLabel", {
+        Size = UDim2.new(0, 60, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = cfg.Color or C.Accent,
+        BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold,
+        Text = cfg.Title or "Tag",
+        TextColor3 = C.Text,
+        TextSize = 11,
+        AutoButtonColor = false,
+    }, self.TagHolder)
+    corner(t, cfg.Radius or 6)
+    return t
+end
+
+function Library:EditOpenButton(cfg)
+    if self.MobileBtn then
+        if cfg.Title then self.MobileBtn.Text = cfg.Title end
+        if cfg.Icon then
+            self.MobileBtn.Text = ""
+            local img = mk("ImageLabel", {
+                Size = UDim2.new(1, -8, 1, -8),
+                Position = UDim2.new(0, 4, 0, 4),
+                BackgroundTransparency = 1,
+                Image = cfg.Icon,
+                ScaleType = Enum.ScaleType.Fit,
+            }, self.MobileBtn)
+        end
+    end
+    return self
+end
+
 function Library:Toggle(state)
     self.Open = state
     if self.Main then
@@ -441,7 +564,7 @@ function Library:Notify(cfg)
         Position = UDim2.new(0, 14, 0, 28),
         BackgroundTransparency = 1,
         Font = Enum.Font.Gotham,
-        Text = cfg.Text or "",
+        Text = cfg.Text or cfg.Content or "",
         TextColor3 = C.TextDim,
         TextSize = 11,
         TextWrapped = true,
@@ -520,13 +643,89 @@ function Library:CreateTab(name)
         page.Visible = true
     end
 
-    tab.AddButton = function(_, c) return self:MakeButton(page, c) end
-    tab.AddToggle = function(_, c) return self:MakeToggle(page, c) end
-    tab.AddDropdown = function(_, c) return self:MakeDropdown(page, c) end
-    tab.AddSlider = function(_, c) return self:MakeSlider(page, c) end
-    tab.AddInput = function(_, c) return self:MakeInput(page, c) end
-    tab.AddLabel = function(_, c) return self:MakeLabel(page, c) end
-    tab.AddSection = function(_, c) return self:MakeSection(page, c) end
+    local function bindAliases(parent)
+        parent.AddButton = function(_, c)
+            c = c or {}
+            return self:MakeButton(parent, {Text = c.Text or c.Title, Callback = c.Callback})
+        end
+        parent.AddToggle = function(_, c)
+            c = c or {}
+            return self:MakeToggle(parent, {Text = c.Text or c.Title, Default = c.Default, Flag = c.Flag, Callback = c.Callback})
+        end
+        parent.AddDropdown = function(_, c)
+            c = c or {}
+            return self:MakeDropdown(parent, {
+                Text = c.Text or c.Title,
+                Options = c.Options or c.Values,
+                Default = c.Default or c.Value,
+                Multi = c.Multi,
+                Flag = c.Flag,
+                Callback = c.Callback,
+                AllowNone = c.AllowNone,
+            })
+        end
+        parent.AddSlider = function(_, c)
+            c = c or {}
+            local v = c.Value or {}
+            return self:MakeSlider(parent, {
+                Text = c.Text or c.Title,
+                Min = c.Min or v.Min or 0,
+                Max = c.Max or v.Max or 100,
+                Default = c.Default or v.Default or v.Min or 0,
+                Step = c.Step,
+                Flag = c.Flag,
+                Callback = c.Callback,
+            })
+        end
+        parent.AddInput = function(_, c)
+            c = c or {}
+            return self:MakeInput(parent, {
+                Text = c.Text or c.Title,
+                Default = c.Default or c.Value or "",
+                Placeholder = c.Placeholder,
+                Callback = c.Callback,
+            })
+        end
+        parent.AddLabel = function(_, c)
+            c = c or {}
+            return self:MakeLabel(parent, c)
+        end
+        parent.AddSection = function(_, c)
+            c = c or {}
+            return self:MakeSection(parent, c)
+        end
+        parent.AddParagraph = function(_, c)
+            c = c or {}
+            return self:MakeParagraph(parent, c)
+        end
+        parent.Toggle = parent.AddToggle
+        parent.Dropdown = parent.AddDropdown
+        parent.Slider = parent.AddSlider
+        parent.Button = parent.AddButton
+        parent.Input = parent.AddInput
+        parent.Paragraph = parent.AddParagraph
+        parent.Label = parent.AddLabel
+        parent.Section = parent.AddSection
+        parent.Select = function()
+            btn.MouseButton1Click:Fire()
+        end
+        return parent
+    end
+
+    bindAliases(tab)
+
+    tab.Tab = function(_, c)
+        local sectionFrame = self:MakeSection(page, {Name = c.Title or c.Name})
+        local sub = {
+            _frame = sectionFrame,
+            _parentPage = page,
+        }
+        bindAliases(sub)
+        sub.Section = function(_, c2)
+            return self:MakeSection(page, {Name = c2.Title or c2.Name})
+        end
+        return sub
+    end
 
     return tab
 end
@@ -540,7 +739,7 @@ function Library:MakeSection(parent, cfg)
         Size = UDim2.new(1, 0, 0, 20),
         BackgroundTransparency = 1,
         Font = Enum.Font.GothamBold,
-        Text = cfg.Name or "SECTION",
+        Text = cfg.Name or cfg.Title or "SECTION",
         TextColor3 = C.Accent2,
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -553,7 +752,105 @@ function Library:MakeSection(parent, cfg)
         BackgroundTransparency = 0.5,
     }, f)
     grad(line, C.Accent, C.Accent2, 0)
-    return f
+    local section = {
+        Frame = f,
+        _parent = parent,
+    }
+    section.AddButton = function(_, c)
+        c = c or {}
+        return self:MakeButton(parent, {Text = c.Text or c.Title, Callback = c.Callback})
+    end
+    section.AddToggle = function(_, c)
+        c = c or {}
+        return self:MakeToggle(parent, {Text = c.Text or c.Title, Default = c.Default, Flag = c.Flag, Callback = c.Callback})
+    end
+    section.AddDropdown = function(_, c)
+        c = c or {}
+        return self:MakeDropdown(parent, {
+            Text = c.Text or c.Title,
+            Options = c.Options or c.Values,
+            Default = c.Default or c.Value,
+            Multi = c.Multi,
+            Flag = c.Flag,
+            Callback = c.Callback,
+        })
+    end
+    section.AddSlider = function(_, c)
+        c = c or {}
+        local v = c.Value or {}
+        return self:MakeSlider(parent, {
+            Text = c.Text or c.Title,
+            Min = c.Min or v.Min or 0,
+            Max = c.Max or v.Max or 100,
+            Default = c.Default or v.Default or v.Min or 0,
+            Step = c.Step,
+            Flag = c.Flag,
+            Callback = c.Callback,
+        })
+    end
+    section.AddButton = section.AddButton
+    section.AddInput = function(_, c)
+        c = c or {}
+        return self:MakeInput(parent, {
+            Text = c.Text or c.Title,
+            Default = c.Default or c.Value or "",
+            Placeholder = c.Placeholder,
+            Callback = c.Callback,
+        })
+    end
+    section.AddParagraph = function(_, c)
+        c = c or {}
+        return self:MakeParagraph(parent, c)
+    end
+    section.Toggle = section.AddToggle
+    section.Dropdown = section.AddDropdown
+    section.Slider = section.AddSlider
+    section.Button = section.AddButton
+    section.Input = section.AddInput
+    section.Paragraph = section.AddParagraph
+    return section
+end
+
+function Library:MakeParagraph(parent, cfg)
+    local f = mk("Frame", {
+        Size = UDim2.new(1, 0, 0, 44),
+        BackgroundColor3 = C.BgElem,
+        BorderSizePixel = 0,
+    }, parent)
+    corner(f, 8)
+    stroke(f, C.Accent, 1, 0.7)
+
+    local title = mk("TextLabel", {
+        Size = UDim2.new(1, -20, 0, 20),
+        Position = UDim2.new(0, 12, 0, 6),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.GothamBold,
+        Text = cfg.Title or "Info",
+        TextColor3 = C.Text,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, f)
+
+    local desc = mk("TextLabel", {
+        Size = UDim2.new(1, -20, 0, 16),
+        Position = UDim2.new(0, 12, 0, 24),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham,
+        Text = cfg.Desc or "",
+        TextColor3 = C.TextDim,
+        TextSize = 11,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, f)
+
+    local obj = {Frame = f, _title = title, _desc = desc}
+    obj.SetDesc = function(_, s)
+        desc.Text = s or ""
+    end
+    obj.SetTitle = function(_, s)
+        title.Text = s or ""
+    end
+    return obj
 end
 
 function Library:MakeLabel(parent, cfg)
@@ -565,7 +862,7 @@ function Library:MakeLabel(parent, cfg)
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Font = Enum.Font.Gotham,
-        Text = cfg.Text or "Label",
+        Text = cfg.Text or cfg.Title or "Label",
         TextColor3 = C.TextDim,
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -669,6 +966,7 @@ function Library:MakeSlider(parent, cfg)
     local min = cfg.Min or 0
     local max = cfg.Max or 100
     local val = cfg.Default or min
+    local step = cfg.Step
     local flag = cfg.Flag
 
     local f = mk("Frame", {
@@ -737,7 +1035,12 @@ function Library:MakeSlider(parent, cfg)
     local dragging = false
     local function update(input)
         local rel = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-        local v = math.floor(min + (max - min) * rel + 0.5)
+        local v = min + (max - min) * rel
+        if step then
+            v = math.floor(v / step + 0.5) * step
+        else
+            v = math.floor(v + 0.5)
+        end
         val = v
         valLbl.Text = tostring(v)
         fill.Size = UDim2.new(rel, 0, 1, 0)
@@ -815,9 +1118,11 @@ end
 function Library:MakeDropdown(parent, cfg)
     local options = cfg.Options or {}
     local multi = cfg.Multi or false
+    local allowNone = cfg.AllowNone or false
     local selected = cfg.Default or (multi and {} or (options[1] or ""))
     local open = false
     local flag = cfg.Flag
+    local itemButtons = {}
 
     local f = mk("Frame", {
         Size = UDim2.new(1, 0, 0, 38),
@@ -885,41 +1190,50 @@ function Library:MakeDropdown(parent, cfg)
         if flag then self.Flags[flag] = selected end
     end
 
-    for i, opt in ipairs(options) do
-        local ib = mk("TextButton", {
-            Size = UDim2.new(1, -8, 0, 28),
-            Position = UDim2.new(0, 4, 0, 4 + (i - 1) * 30),
-            BackgroundColor3 = C.BgElem,
-            BorderSizePixel = 0,
-            Font = Enum.Font.Gotham,
-            Text = tostring(opt),
-            TextColor3 = C.Text,
-            TextSize = 12,
-            AutoButtonColor = false,
-            ZIndex = 6,
-        }, list)
-        corner(ib, 6)
-        ib.MouseEnter:Connect(function() tw(ib, 0.12, {BackgroundColor3 = C.BgHover}) end)
-        ib.MouseLeave:Connect(function() tw(ib, 0.12, {BackgroundColor3 = C.BgElem}) end)
-        ib.MouseButton1Click:Connect(function()
-            click()
-            if multi then
-                local found = false
-                for k, v in ipairs(selected) do
-                    if v == opt then table.remove(selected, k); found = true; break end
+    local function buildItems(opts)
+        for _, b in ipairs(itemButtons) do
+            b:Destroy()
+        end
+        itemButtons = {}
+        for i, opt in ipairs(opts) do
+            local ib = mk("TextButton", {
+                Size = UDim2.new(1, -8, 0, 28),
+                Position = UDim2.new(0, 4, 0, 4 + (i - 1) * 30),
+                BackgroundColor3 = C.BgElem,
+                BorderSizePixel = 0,
+                Font = Enum.Font.Gotham,
+                Text = tostring(opt),
+                TextColor3 = C.Text,
+                TextSize = 12,
+                AutoButtonColor = false,
+                ZIndex = 6,
+            }, list)
+            corner(ib, 6)
+            ib.MouseEnter:Connect(function() tw(ib, 0.12, {BackgroundColor3 = C.BgHover}) end)
+            ib.MouseLeave:Connect(function() tw(ib, 0.12, {BackgroundColor3 = C.BgElem}) end)
+            ib.MouseButton1Click:Connect(function()
+                click()
+                if multi then
+                    local found = false
+                    for k, v in ipairs(selected) do
+                        if v == opt then table.remove(selected, k); found = true; break end
+                    end
+                    if not found then table.insert(selected, opt) end
+                else
+                    selected = opt
+                    open = false
+                    tw(f, 0.25, {Size = UDim2.new(1, 0, 0, 38)})
+                    tw(arrow, 0.2, {Rotation = 0})
+                    tw(list, 0.2, {Size = UDim2.new(1, 0, 0, 0)})
                 end
-                if not found then table.insert(selected, opt) end
-            else
-                selected = opt
-                open = false
-                tw(f, 0.25, {Size = UDim2.new(1, 0, 0, 38)})
-                tw(arrow, 0.2, {Rotation = 0})
-                tw(list, 0.2, {Size = UDim2.new(1, 0, 0, 0)})
-            end
-            refreshVal()
-            if cfg.Callback then pcall(cfg.Callback, selected) end
-        end)
+                refreshVal()
+                if cfg.Callback then pcall(cfg.Callback, selected) end
+            end)
+            table.insert(itemButtons, ib)
+        end
     end
+
+    buildItems(options)
 
     header.MouseButton1Click:Connect(function()
         click()
@@ -937,7 +1251,21 @@ function Library:MakeDropdown(parent, cfg)
     end)
 
     refreshVal()
-    return {Frame = f, Set = function(v) selected = v; refreshVal() end, Get = function() return selected end}
+    local obj = {
+        Frame = f,
+        Set = function(v) selected = v; refreshVal() end,
+        Get = function() return selected end,
+        Refresh = function(_, newOpts)
+            options = newOpts or {}
+            buildItems(options)
+            if open then
+                local h = #options * 30 + 8
+                tw(f, 0.25, {Size = UDim2.new(1, 0, 0, 38 + h)})
+                tw(list, 0.25, {Size = UDim2.new(1, 0, 0, h)})
+            end
+        end,
+    }
+    return obj
 end
 
 return Library
