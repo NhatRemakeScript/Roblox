@@ -149,7 +149,7 @@ function Library:CreateConfigManager(cfg)
     }
     function manager:AllConfigs()
         local list = {}
-        local ok = pcall(function()
+        pcall(function()
             if type(listfiles) == "function" and type(isfolder) == "function" and isfolder(path) then
                 for _, f in ipairs(listfiles(path)) do
                     local name = f:match("([^/\\]+)%.json$")
@@ -157,7 +157,6 @@ function Library:CreateConfigManager(cfg)
                 end
             end
         end)
-        if not ok then return {} end
         return list
     end
     function manager:Save(name, data)
@@ -269,7 +268,7 @@ function Library:Build()
         BackgroundColor3 = C.BgElem,
         BorderSizePixel = 0,
         Font = Enum.Font.GothamBold,
-        Text = "✕",
+        Text = "X",
         TextColor3 = C.Text,
         TextSize = 14,
         AutoButtonColor = false,
@@ -285,9 +284,9 @@ function Library:Build()
         BackgroundColor3 = C.BgElem,
         BorderSizePixel = 0,
         Font = Enum.Font.GothamBold,
-        Text = "—",
+        Text = "-",
         TextColor3 = C.Text,
-        TextSize = 14,
+        TextSize = 18,
         AutoButtonColor = false,
     }, titleBar)
     corner(minBtn, 8)
@@ -436,7 +435,6 @@ function Library:Tag(cfg)
         Text = cfg.Title or "Tag",
         TextColor3 = C.Text,
         TextSize = 11,
-        AutoButtonColor = false,
     }, self.TagHolder)
     corner(t, cfg.Radius or 6)
     return t
@@ -447,7 +445,7 @@ function Library:EditOpenButton(cfg)
         if cfg.Title then self.MobileBtn.Text = cfg.Title end
         if cfg.Icon then
             self.MobileBtn.Text = ""
-            local img = mk("ImageLabel", {
+            mk("ImageLabel", {
                 Size = UDim2.new(1, -8, 1, -8),
                 Position = UDim2.new(0, 4, 0, 4),
                 BackgroundTransparency = 1,
@@ -715,11 +713,11 @@ function Library:CreateTab(name)
     bindAliases(tab)
 
     tab.Tab = function(_, c)
-        local sectionFrame = self:MakeSection(page, {Name = c.Title or c.Name})
         local sub = {
-            _frame = sectionFrame,
-            _parentPage = page,
+            _parent = page,
+            _name = c.Title or c.Name,
         }
+        self:MakeSection(page, {Name = sub._name})
         bindAliases(sub)
         sub.Section = function(_, c2)
             return self:MakeSection(page, {Name = c2.Title or c2.Name})
@@ -752,63 +750,7 @@ function Library:MakeSection(parent, cfg)
         BackgroundTransparency = 0.5,
     }, f)
     grad(line, C.Accent, C.Accent2, 0)
-    local section = {
-        Frame = f,
-        _parent = parent,
-    }
-    section.AddButton = function(_, c)
-        c = c or {}
-        return self:MakeButton(parent, {Text = c.Text or c.Title, Callback = c.Callback})
-    end
-    section.AddToggle = function(_, c)
-        c = c or {}
-        return self:MakeToggle(parent, {Text = c.Text or c.Title, Default = c.Default, Flag = c.Flag, Callback = c.Callback})
-    end
-    section.AddDropdown = function(_, c)
-        c = c or {}
-        return self:MakeDropdown(parent, {
-            Text = c.Text or c.Title,
-            Options = c.Options or c.Values,
-            Default = c.Default or c.Value,
-            Multi = c.Multi,
-            Flag = c.Flag,
-            Callback = c.Callback,
-        })
-    end
-    section.AddSlider = function(_, c)
-        c = c or {}
-        local v = c.Value or {}
-        return self:MakeSlider(parent, {
-            Text = c.Text or c.Title,
-            Min = c.Min or v.Min or 0,
-            Max = c.Max or v.Max or 100,
-            Default = c.Default or v.Default or v.Min or 0,
-            Step = c.Step,
-            Flag = c.Flag,
-            Callback = c.Callback,
-        })
-    end
-    section.AddButton = section.AddButton
-    section.AddInput = function(_, c)
-        c = c or {}
-        return self:MakeInput(parent, {
-            Text = c.Text or c.Title,
-            Default = c.Default or c.Value or "",
-            Placeholder = c.Placeholder,
-            Callback = c.Callback,
-        })
-    end
-    section.AddParagraph = function(_, c)
-        c = c or {}
-        return self:MakeParagraph(parent, c)
-    end
-    section.Toggle = section.AddToggle
-    section.Dropdown = section.AddDropdown
-    section.Slider = section.AddSlider
-    section.Button = section.AddButton
-    section.Input = section.AddInput
-    section.Paragraph = section.AddParagraph
-    return section
+    return f
 end
 
 function Library:MakeParagraph(parent, cfg)
@@ -1167,7 +1109,7 @@ function Library:MakeDropdown(parent, cfg)
         Position = UDim2.new(1, -26, 0, 0),
         BackgroundTransparency = 1,
         Font = Enum.Font.GothamBold,
-        Text = "▼",
+        Text = "v",
         TextColor3 = C.Accent2,
         TextSize = 10,
     }, f)
@@ -1251,7 +1193,7 @@ function Library:MakeDropdown(parent, cfg)
     end)
 
     refreshVal()
-    local obj = {
+    return {
         Frame = f,
         Set = function(v) selected = v; refreshVal() end,
         Get = function() return selected end,
@@ -1265,7 +1207,6 @@ function Library:MakeDropdown(parent, cfg)
             end
         end,
     }
-    return obj
 end
 
 return Library
